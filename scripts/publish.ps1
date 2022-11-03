@@ -9,3 +9,4 @@ Compress-Archive ash.exe ash-$version-win-x64.zip
 gh release create v$version --generate-notes .\ash-$version-win-x64.zip .\ash-$version-win-x64.zip.sha256
 & $env:UserProfile\scoop\apps\scoop\current\bin\checkver.ps1 ash . -Update
 cat ash.json | gh gist edit 80e7005c4fd62cec9161f74bc2ad24ff -f ash.json -
+cd ..

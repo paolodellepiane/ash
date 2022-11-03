@@ -149,8 +149,8 @@ fn get_env_credentials() -> Option<Credential> {
 
 fn get_shared_credentials() -> Option<Vec<Credential>> {
     let user_dirs = Config::user_dirs();
-    let aws_credentials = user_dirs.home_dir().join(".aws/credentials");
-    let aws_config = user_dirs.home_dir().join(".aws/config");
+    let aws_credentials = user_dirs.home_dir().join(".aws").join("credentials");
+    let aws_config = user_dirs.home_dir().join(".aws").join("config");
     if !aws_credentials.exists() {
         return None;
     }
@@ -336,7 +336,7 @@ pub fn update_sshconfig(
     let ssh_config = directories::UserDirs::new()
         .expect("can't retrieve home directory")
         .home_dir()
-        .join(".ssh/config");
+        .join(".ssh").join("config");
     std::fs::write(ssh_config, res)?;
 
     Ok(())

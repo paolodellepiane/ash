@@ -96,7 +96,7 @@ impl Config {
     }
 
     pub fn config_dir() -> PathBuf {
-        Self::user_dirs().home_dir().join(".config/ash")
+        Self::user_dirs().home_dir().join(".config").join("ash")
     }
 
     pub fn config_path() -> PathBuf {
@@ -108,7 +108,7 @@ impl Config {
     }
 
     pub fn cache_path() -> PathBuf {
-        Self::user_dirs().home_dir().join(".config/ash/cache")
+        Self::config_dir().join("cache")
     }
 
     pub fn load() -> Result<(Config, AshArgs)> {

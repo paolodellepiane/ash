@@ -1,0 +1,158 @@
+use crate::{
+    executable::{ScpArgs, TunnelArgs},
+    prelude::*,
+};
+use clap::{Parser, Subcommand, ValueEnum};
+use directories::UserDirs;
+use serde::Deserialize;
+use std::{
+    fs::File,
+    path::PathBuf,
+    process::{exit, Command},
+};
+
+pub const CONFIG_FILE_NAME: &str = "ash.config.json";
+pub const TEMPLATE_FILE_NAME: &str = "template.for.sshconfig.hbs";
+pub const DEFAULT_TEMPLATE: &str = include_str!("../res/template.for.sshconfig.hbs");
+pub const DEFAULT_CONFIG: &str = include_str!("../ash.config.json");
+pub const COMMON_SSH_ARGS: &[&str] = &[
+    "-o",
+    "StrictHostKeyChecking=no",
+    "-o",
+    "UserKnownHostsFile=/dev/null",
+];
+
+#[derive(Parser)]
+#[clap(author, version, about, long_about = None)]
+pub struct AshArgs {
+    /// Remote host
+    pub host: Option<String>,
+    /// Update ssh config
+    #[clap(short, long, default_value_t = false)]
+    pub update: bool,
+    /// Reset to default configuration
+    #[clap(long, default_value_t = false)]
+    pub reset: bool,
+    /// Clear credentials cache
+    #[clap(long, default_value_t = false)]
+    pub clear_cache: bool,
+    /// Open config file
+    #[clap(long, default_value_t = false)]
+    pub open_config: bool,
+    /// Verbose
+    #[clap(long, default_value_t = false)]
+    pub verbose: bool,
+    /// Setup ssh config with provided bastion
+    #[clap(short, long)]
+    pub bastion: Option<String>,
+    #[command(subcommand)]
+    pub command: Option<Commands>,
+}
+
+#[derive(ValueEnum, Clone, Debug)]
+pub enum Service {
+    Rdp,
+    Redis,
+    Rds,
+    RabbitMq,
+}
+
+#[derive(Subcommand)]
+pub enum Commands {
+    /// Copy file/folder from remote
+    #[command(arg_required_else_help = true)]
+    Cp(ScpArgs),
+    /// Create a tunnel for a predefined service
+    #[command(arg_required_else_help = true)]
+    Service {
+        /// Common Services
+        service: Service,
+    },
+    /// Create a tunnel for custom ports
+    #[command(arg_required_else_help = true)]
+    Tunnel(TunnelArgs),
+    /// Execute a command remotely
+    #[command(arg_required_else_help = true)]
+    Exec {
+        /// Command to execute
+        command: String,
+    },
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct Config {
+    pub keys_path: String,
+    #[serde(default)]
+    pub template_file_path: PathBuf,
+    #[serde(default)]
+    pub bastion_name: Option<String>,
+    #[serde(default)]
+    pub update: bool,
+}
+
+impl Config {
+    pub fn user_dirs() -> UserDirs {
+        UserDirs::new().expect("can't get user dirs")
+    }
+
+    pub fn config_dir() -> PathBuf {
+        Self::user_dirs().home_dir().join(".config/ash")
+    }
+
+    pub fn config_path() -> PathBuf {
+        Self::config_dir().join(CONFIG_FILE_NAME)
+    }
+
+    pub fn template_path() -> PathBuf {
+        Self::config_dir().join(TEMPLATE_FILE_NAME)
+    }
+
+    pub fn cache_path() -> PathBuf {
+        Self::user_dirs().home_dir().join(".config/ash/cache")
+    }
+
+    pub fn load() -> Result<(Config, AshArgs)> {
+        let args = AshArgs::parse();
+        let user_dirs = directories::UserDirs::new().expect("can't get user dirs");
+        let home = user_dirs.home_dir().to_str().expect("can't get home dir");
+        let config_path = Self::config_path();
+        let template_path = Self::template_path();
+        if args.reset {
+            if let Err(err) = std::fs::remove_dir_all(Self::config_dir()) {
+                p!(
+                    "can't remove config folder {:?}: {err:?}",
+                    Self::config_path()
+                );
+            }
+        }
+        std::fs::create_dir_all(Self::config_dir())?;
+        if !config_path.exists() {
+            std::fs::write(&config_path, DEFAULT_CONFIG)?;
+        }
+        if !template_path.exists() {
+            std::fs::write(&template_path, DEFAULT_TEMPLATE)?;
+        }
+        if args.clear_cache {
+            std::fs::remove_file(Self::cache_path())?
+        }
+        if args.open_config {
+            #[cfg(target_os = "macos")]
+            Command::new("open").arg(Self::config_dir()).status()?;
+            #[cfg(target_os = "windows")]
+            Command::new("explorer").arg(Self::config_dir()).status()?;
+            #[cfg(all(not(target_os = "macos"), not(target_os = "windows")))]
+            p!("Not supported on current platform");
+            exit(0);
+        }
+        let config = File::open(&config_path).context(f!("can't find config: {config_path:?}"))?;
+        let mut config: Config =
+            serde_json::from_reader(config).context("Error deserializing config")?;
+        config.keys_path = config.keys_path.replace('~', home);
+        config.template_file_path = template_path;
+        args.bastion.is_some().then(|| config.bastion_name = args.bastion.clone());
+        config.update = config.update || args.update;
+        args.verbose.then(|| p!("{config:?}"));
+
+        Ok((config, args))
+    }
+}

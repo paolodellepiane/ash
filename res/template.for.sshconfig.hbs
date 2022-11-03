@@ -1,0 +1,15 @@
+Host *
+    StrictHostKeyChecking no
+
+Host mybastionexample
+    HostName 3.248.182.201
+    User ubuntu
+
+{{#each this as |t| }}
+# generated [{{t.profile}}]
+Host {{t.name}}
+    HostName {{t.address}}
+    User ubuntu
+    IdentityFile {{t.key}}
+    {{#if t.proxy_jump}}ProxyJump {{t.proxy_jump}}{{/if}}
+{{/each}}

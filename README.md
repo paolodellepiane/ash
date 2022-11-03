@@ -7,7 +7,7 @@
 - Scoop Install
 
 ```
-scoop install https://gist.githubusercontent.com/paolodellepiane/80e7005c4fd62cec9161f74bc2ad24ff/raw/ash.json
+scoop install https://gist.githubusercontent.com/paolodellepiane/a059f56c8026d8581add2bc29f80f144/raw/ash.json
 ```
 
 ## Update

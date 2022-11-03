@@ -1,6 +1,6 @@
 # ash
 
-[![Ash](https://github.com/paolo-dellepiane/ash/actions/workflows/rust.yml/badge.svg)](https://github.com/paolo-dellepiane/ash/actions/workflows/rust.yml)
+[![Rust](https://github.com/paolodellepiane/ash/actions/workflows/rust.yml/badge.svg)](https://github.com/paolodellepiane/ash/actions/workflows/rust.yml)
 
 ## Install
 

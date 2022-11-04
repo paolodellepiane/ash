@@ -1,4 +1,4 @@
-pub use crate::option_not_empty_string::*;
+pub use crate::not_empty_string::*;
 pub use anyhow::{anyhow, bail, ensure, Context, Result};
 pub use std::format as f;
 use std::ops::Deref;

@@ -13,7 +13,7 @@ mod aws;
 mod config;
 mod describe_instances;
 mod executable;
-mod option_not_empty_string;
+mod not_empty_string;
 mod prelude;
 
 #[derive(Clone, Debug, Serialize)]
@@ -44,11 +44,7 @@ fn parse_hosts() -> Result<HashMap<String, Host>> {
     Ok(res)
 }
 
-fn select(
-    message: &str,
-    options: Vec<String>,
-    start_value: &OptionNotEmptyString,
-) -> Result<String> {
+fn select(message: &str, options: Vec<String>, start_value: &NotEmptyString) -> Result<String> {
     let matcher = SkimMatcherV2::default().ignore_case();
     let options = options
         .into_iter()
@@ -76,30 +72,24 @@ fn select_profile_then_host(
     message: &str,
     Hosts { hosts, start_value, .. }: &Hosts,
 ) -> Result<String> {
+    let _select_profile_then_host = |(start_profile, start_host): (&str, &str)| {
+        let profiles = hosts.iter().map(|(_, h)| h.profile.clone()).unique().collect_vec();
+        let profile = select("Choose Profile...", profiles, &start_profile.into())?;
+        let values = hosts
+            .iter()
+            .filter_map(|(_, h)| (h.profile == profile).then_some(h.name.clone()))
+            .collect_vec();
+        select(message, values, &start_host.into())
+    };
     match start_value.as_deref() {
         Some(start_value) if start_value.contains(':') => {
-            let (start_profile, start_host) = start_value.split_once(':').unwrap();
-            let profiles = hosts.iter().map(|(_, h)| h.profile.clone()).unique().collect_vec();
-            let profile = select("Choose Profile...", profiles, &OptionNotEmptyString::from(start_profile))?;
-            let values = hosts
-                .iter()
-                .filter_map(|(_, h)| (h.profile == profile).then_some(h.name.clone()))
-                .collect_vec();
-            select(message, values, &OptionNotEmptyString::from(start_host))
-        },
+            _select_profile_then_host(start_value.split_once(':').unwrap())
+        }
         Some(_) => {
             let values = hosts.iter().map(|(name, _)| name.clone()).collect_vec();
             select(message, values, start_value)
-        },
-        None => {
-            let profiles = hosts.iter().map(|(_, h)| h.profile.clone()).unique().collect_vec();
-            let profile = select("Choose Profile...", profiles, &OptionNotEmptyString::from(""))?;
-            let values = hosts
-                .iter()
-                .filter_map(|(_, h)| (h.profile == profile).then_some(h.name.clone()))
-                .collect_vec();
-            select(message, values, &OptionNotEmptyString::from(""))
         }
+        None => _select_profile_then_host(("", "")),
     }
 }
 
@@ -134,5 +124,6 @@ fn main() -> Result<()> {
             Some(_) => (),
         }
     }
+
     Ok(())
 }

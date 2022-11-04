@@ -1,12 +1,11 @@
 use crate::config::Service;
 use crate::config::COMMON_SSH_ARGS;
 use crate::prelude::*;
-use crate::select;
+use crate::select_profile_then_host;
 use crate::Host;
 use crate::OptionNotEmptyString;
 use clap::arg;
 use clap::Args;
-use itertools::Itertools;
 use std::collections::HashMap;
 use std::process::Command;
 
@@ -37,18 +36,20 @@ pub struct Tunnel {
 }
 
 impl Tunnel {
-    pub fn from_ports(TunnelArgs { local, remote }: TunnelArgs,
-                      Hosts { hosts, start_value, bastion }: &Hosts)
-                      -> Result<Self> {
+    pub fn from_ports(
+        TunnelArgs { local, remote }: TunnelArgs,
+        hosts @ Hosts { bastion, .. }: &Hosts,
+    ) -> Result<Self> {
         if bastion.is_none() {
             bail!("Can't tunnel without bastion");
         }
-        let bastion = hosts.get(bastion.as_deref().unwrap())
-                           .ok_or_else(|| anyhow!("Can't find bastion {bastion:?}"))?
-                           .clone();
-        let values = hosts.iter().map(|(name, _)| name.clone()).collect_vec();
-        let choice = select("Tunnel to...", values, start_value)?;
-        let host = hosts[&choice].clone();
+        let bastion = hosts
+            .hosts
+            .get(bastion.as_deref().unwrap())
+            .ok_or_else(|| anyhow!("Can't find bastion {bastion:?}"))?
+            .clone();
+        let choice = select_profile_then_host("Tunnel to...", hosts)?;
+        let host = hosts.hosts[&choice].clone();
 
         Ok(Self { local, remote, host, bastion })
     }
@@ -67,14 +68,17 @@ impl Tunnel {
 
 impl Executable for Tunnel {
     fn exec(&self) -> Result<()> {
-        let Self { local,
-                   remote,
-                   host: Host { name, address, .. },
-                   bastion: Host { name: bastion_name, .. }, } = self;
+        let Self {
+            local,
+            remote,
+            host: Host { name, address, .. },
+            bastion: Host { name: bastion_name, .. },
+        } = self;
         p!("Tunneling from {local} to {name}:{remote} through {bastion_name} ...");
-        Command::new("ssh").args(COMMON_SSH_ARGS)
-                           .args(["-N", "-L", &f!("{local}:{address}:{remote}"), bastion_name])
-                           .status()?;
+        Command::new("ssh")
+            .args(COMMON_SSH_ARGS)
+            .args(["-N", "-L", &f!("{local}:{address}:{remote}"), bastion_name])
+            .status()?;
 
         Ok(())
     }
@@ -97,12 +101,16 @@ pub struct Scp {
 }
 
 impl Scp {
-    pub fn new(ScpArgs { from, to }: &ScpArgs, Hosts { hosts, .. }: &Hosts) -> Result<Self> {
-        fn expand_remote(s: &str, hosts: &HashMap<String, Host>) -> Result<(String, Option<Host>)> {
-            if let Some((srv, path)) = s.split_once(':') {
-                let values = hosts.iter().map(|(name, _)| name.clone()).collect_vec();
-                let choice = select("Select Host...", values, &srv.into())?;
-                let host @ Host { name, .. } = &hosts[&choice];
+    pub fn new(ScpArgs { from, to }: &ScpArgs, hosts: &Hosts) -> Result<Self> {
+        fn expand_remote(s: &str, hosts: &Hosts) -> Result<(String, Option<Host>)> {
+            if let Some((start_value, path)) = s.split_once(':') {
+                let hosts = &Hosts {
+                    start_value: start_value.into(),
+                    hosts: hosts.hosts.clone(),
+                    bastion: OptionNotEmptyString::from(""),
+                };
+                let choice = select_profile_then_host("Choose Remote...", hosts)?;
+                let host @ Host { name, .. } = &hosts.hosts[&choice];
                 let res = f!("{name}:{path}");
                 Ok((res, Some(host.clone())))
             } else {
@@ -138,11 +146,9 @@ pub struct Ssh {
 }
 
 impl Ssh {
-    pub fn new(Hosts { hosts, start_value, .. }: &Hosts) -> Result<Self> {
-        let values = hosts.iter().map(|(name, _)| name.clone()).collect_vec();
-        let choice = select("Connect to Host...", values, start_value)?;
-
-        Ok(Self { host: hosts[&choice].clone() })
+    pub fn new(hosts: &Hosts) -> Result<Self> {
+        let choice = select_profile_then_host("Connect to Host...", hosts)?;
+        Ok(Self { host: hosts.hosts[&choice].clone() })
     }
 }
 
@@ -162,11 +168,9 @@ pub struct Exec {
 }
 
 impl Exec {
-    pub fn new(command: &str, Hosts { hosts, start_value, .. }: &Hosts) -> Result<Self> {
-        let values = hosts.iter().map(|(name, _)| name.clone()).collect_vec();
-        let choice = select("Execute on Host...", values, start_value)?;
-
-        Ok(Self { host: hosts[&choice].clone(), command: command.to_string() })
+    pub fn new(command: &str, hosts: &Hosts) -> Result<Self> {
+        let choice = select_profile_then_host("Execute on Host...", hosts)?;
+        Ok(Self { host: hosts.hosts[&choice].clone(), command: command.to_string() })
     }
 }
 

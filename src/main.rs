@@ -5,10 +5,8 @@ use executable::{Exec, Executable, Hosts, Scp, Ssh, Tunnel};
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use inquire::{InquireError, Select};
 use itertools::Itertools;
-use pollster::FutureExt;
 use prelude::*;
 use serde::Serialize;
-use ssh_cfg::{SshConfigParser, SshOptionKey};
 use std::{collections::HashMap, fmt::Debug};
 
 mod aws;
@@ -21,73 +19,92 @@ mod prelude;
 #[derive(Clone, Debug, Serialize)]
 pub struct Host {
     pub name: String,
+    pub profile: String,
     pub address: String,
     pub user: String,
     pub key: Option<String>,
 }
 
-async fn parse_hosts() -> Result<HashMap<String, Host>> {
-    let ssh_config = SshConfigParser::parse_home().await?;
-    let res = ssh_config.iter()
-                        .filter_map(|(h, c)| {
-                            let i = Host { name: h.clone(),
-                                           address: c.get(&SshOptionKey::Hostname)?.clone(),
-                                           user: c.get(&SshOptionKey::User)?.clone(),
-                                           key: c.get(&SshOptionKey::IdentityFile)
-                                                 .map(String::from) };
-                            Some(i)
-                        })
-                        .map(|x| (x.name.clone(), x))
-                        .collect();
-
+fn parse_hosts() -> Result<HashMap<String, Host>> {
+    const HOSTS: &str = r"(?smU)# generated\s*\[(?P<profile>\S*)\]\s*?$.*Host\s*(?P<name>\S*)\s*$\s*HostName\s*(?P<address>\S*)\s*$\s*User\s*(?P<user>\S*)\s*$\s*IdentityFile\s*(?P<key>\S*)\s*$";
+    let ssh_config_path = Config::home_dir().join(".ssh").join("config");
+    let ssh_config = std::fs::read_to_string(ssh_config_path)?;
+    // let _guard = stopwatch("ssh parse");
+    let res: HashMap<_, _> = regex::Regex::new(HOSTS)?
+        .captures_iter(&ssh_config)
+        .filter_map(|c| {
+            let profile = c.name("profile")?.as_str().to_string();
+            let name = c.name("name")?.as_str().to_string();
+            let address = c.name("address")?.as_str().to_string();
+            let user = c.name("user")?.as_str().to_string();
+            let key = c.name("key").map(|x| String::from(x.as_str()));
+            Some((name.clone(), Host { name, profile, address, user, key }))
+        })
+        .collect();
     Ok(res)
 }
 
-fn select(message: &str,
-          options: Vec<String>,
-          start_value: &OptionNotEmptyString)
-          -> Result<String> {
+fn select(
+    message: &str,
+    options: Vec<String>,
+    start_value: &OptionNotEmptyString,
+) -> Result<String> {
     let matcher = SkimMatcherV2::default().ignore_case();
-    let options = options.into_iter()
-                         .filter(|x| {
-                             start_value.as_deref().map_or(true, |filter| {
-                                                       matcher.fuzzy_match(x, filter).is_some()
-                                                   })
-                         })
-                         .sorted()
-                         .collect_vec();
+    let options = options
+        .into_iter()
+        .filter(|x| {
+            start_value.as_deref().map_or(true, |filter| matcher.fuzzy_match(x, filter).is_some())
+        })
+        .sorted()
+        .collect_vec();
     if options.is_empty() {
         bail!("No host found");
     }
-    if options.len() == 1 {
+    if options.len() == 1 && start_value.is_some() {
         return Ok(options[0].clone());
     }
-    let ans =
-        Select::new(message, options).with_filter(&|filter: &str,
-                                                    _,
-                                                    string_value: &str,
-                                                    _|
-                                      -> bool {
-                                         matcher.fuzzy_match(string_value, filter).is_some()
-                                     })
-                                     .prompt()?;
+    let ans = Select::new(message, options)
+        .with_filter(&|filter: &str, _, string_value: &str, _| -> bool {
+            matcher.fuzzy_match(string_value, filter).is_some()
+        })
+        .prompt()?;
 
     Ok(ans)
 }
 
-async fn run() -> Result<()> {
+fn select_profile_then_host(
+    message: &str,
+    Hosts { hosts, start_value, .. }: &Hosts,
+) -> Result<String> {
+    let values = if start_value.is_some() {
+        hosts.iter().map(|(name, _)| name.clone()).collect_vec()
+    } else {
+        let profiles = hosts.iter().map(|(_, h)| h.profile.clone()).unique().collect_vec();
+        let profile = select("Choose Profile...", profiles, start_value)?;
+        hosts
+            .iter()
+            .filter_map(|(_, h)| (h.profile == profile).then_some(h.name.clone()))
+            .collect_vec()
+    };
+    select(message, values, start_value)
+}
+
+fn run() -> Result<()> {
     let (config, args) = &mut Config::load()?;
     if config.update {
-        update_sshconfig(&config.keys_path,
-                         &config.template_file_path,
-                         config.bastion_name.as_deref())?;
+        update_sshconfig(
+            &config.keys_path,
+            &config.template_file_path,
+            config.bastion_name.as_deref(),
+        )?;
     }
 
-    let hosts = parse_hosts().await?;
-    let hosts = &Hosts { hosts,
-                         start_value: args.host.clone().into(),
-                         bastion: config.bastion_name.clone().into() };
-
+    let hosts = parse_hosts()?;
+    let hosts = &Hosts {
+        hosts,
+        start_value: args.host.clone().into(),
+        bastion: config.bastion_name.clone().into(),
+    };
     match &args.command {
         Some(Commands::Cp(cp)) => Scp::new(cp, hosts)?.exec(),
         Some(Commands::Service { service }) => Tunnel::from_service(service, hosts)?.exec(),
@@ -98,7 +115,7 @@ async fn run() -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    if let Err(err) = run().block_on() {
+    if let Err(err) = run() {
         match err.downcast_ref::<InquireError>() {
             None => bail!(err),
             Some(_) => (),

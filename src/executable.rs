@@ -4,8 +4,8 @@ use crate::prelude::*;
 use crate::select;
 use crate::Host;
 use crate::OptionNotEmptyString;
-use clap::Args;
 use clap::arg;
+use clap::Args;
 use itertools::Itertools;
 use std::collections::HashMap;
 use std::process::Command;
@@ -37,17 +37,15 @@ pub struct Tunnel {
 }
 
 impl Tunnel {
-    pub fn from_ports(
-        TunnelArgs { local, remote }: TunnelArgs,
-        Hosts { hosts, start_value, bastion }: &Hosts,
-    ) -> Result<Self> {
+    pub fn from_ports(TunnelArgs { local, remote }: TunnelArgs,
+                      Hosts { hosts, start_value, bastion }: &Hosts)
+                      -> Result<Self> {
         if bastion.is_none() {
             bail!("Can't tunnel without bastion");
         }
-        let bastion = hosts
-            .get(bastion.as_deref().unwrap())
-            .ok_or_else(|| anyhow!("Can't find bastion {bastion:?}"))?
-            .clone();
+        let bastion = hosts.get(bastion.as_deref().unwrap())
+                           .ok_or_else(|| anyhow!("Can't find bastion {bastion:?}"))?
+                           .clone();
         let values = hosts.iter().map(|(name, _)| name.clone()).collect_vec();
         let choice = select("Tunnel to...", values, start_value)?;
         let host = hosts[&choice].clone();
@@ -69,17 +67,14 @@ impl Tunnel {
 
 impl Executable for Tunnel {
     fn exec(&self) -> Result<()> {
-        let Self {
-            local,
-            remote,
-            host: Host { name, address, .. },
-            bastion: Host { name: bastion_name, .. },
-        } = self;
+        let Self { local,
+                   remote,
+                   host: Host { name, address, .. },
+                   bastion: Host { name: bastion_name, .. }, } = self;
         p!("Tunneling from {local} to {name}:{remote} through {bastion_name} ...");
-        Command::new("ssh")
-            .args(COMMON_SSH_ARGS)
-            .args(["-N", "-L", &f!("{local}:{address}:{remote}"), bastion_name])
-            .status()?;
+        Command::new("ssh").args(COMMON_SSH_ARGS)
+                           .args(["-N", "-L", &f!("{local}:{address}:{remote}"), bastion_name])
+                           .status()?;
 
         Ok(())
     }

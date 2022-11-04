@@ -15,12 +15,10 @@ pub const CONFIG_FILE_NAME: &str = "ash.config.json";
 pub const TEMPLATE_FILE_NAME: &str = "template.for.sshconfig.hbs";
 pub const DEFAULT_TEMPLATE: &str = include_str!("../res/template.for.sshconfig.hbs");
 pub const DEFAULT_CONFIG: &str = include_str!("../ash.config.json");
-pub const COMMON_SSH_ARGS: &[&str] = &[
-    "-o",
-    "StrictHostKeyChecking=no",
-    "-o",
-    "UserKnownHostsFile=/dev/null",
-];
+pub const COMMON_SSH_ARGS: &[&str] = &["-o",
+                                       "StrictHostKeyChecking=no",
+                                       "-o",
+                                       "UserKnownHostsFile=/dev/null"];
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -119,10 +117,8 @@ impl Config {
         let template_path = Self::template_path();
         if args.reset {
             if let Err(err) = std::fs::remove_dir_all(Self::config_dir()) {
-                p!(
-                    "can't remove config folder {:?}: {err:?}",
-                    Self::config_path()
-                );
+                p!("can't remove config folder {:?}: {err:?}",
+                   Self::config_path());
             }
         }
         std::fs::create_dir_all(Self::config_dir())?;

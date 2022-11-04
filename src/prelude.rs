@@ -1,8 +1,8 @@
-pub use anyhow::{Context, Result, anyhow, bail, ensure};
+pub use crate::option_not_empty_string::*;
+pub use anyhow::{anyhow, bail, ensure, Context, Result};
 pub use std::format as f;
 pub use std::println as p;
 use std::time::Instant;
-pub use crate::option_not_empty_string::*;
 
 pub trait ThrutyOptionStringExt {
     fn is_falsy(&self) -> bool;

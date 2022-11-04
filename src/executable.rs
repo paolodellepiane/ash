@@ -117,7 +117,7 @@ impl Scp {
         }
         let (from, from_host) = expand_remote(from, hosts)?;
         let (to, to_host) = expand_remote(to, hosts)?;
-        from_host.or(to_host).expect("No host found");
+        from_host.or(to_host).context("No host found")?;
 
         Ok(Self { from, to })
     }

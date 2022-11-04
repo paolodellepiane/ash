@@ -93,6 +93,10 @@ impl Config {
         UserDirs::new().expect("can't get user dirs")
     }
 
+    pub fn home_dir() -> PathBuf {
+        Self::user_dirs().home_dir().to_owned()
+    }
+
     pub fn config_dir() -> PathBuf {
         Self::user_dirs().home_dir().join(".config").join("ash")
     }
@@ -111,8 +115,6 @@ impl Config {
 
     pub fn load() -> Result<(Config, AshArgs)> {
         let args = AshArgs::parse();
-        let user_dirs = directories::UserDirs::new().expect("can't get user dirs");
-        let home = user_dirs.home_dir().to_str().expect("can't get home dir");
         let config_path = Self::config_path();
         let template_path = Self::template_path();
         if args.reset {
@@ -143,7 +145,8 @@ impl Config {
         let config = File::open(&config_path).context(f!("can't find config: {config_path:?}"))?;
         let mut config: Config =
             serde_json::from_reader(config).context("Error deserializing config")?;
-        config.keys_path = config.keys_path.replace('~', home);
+        config.keys_path =
+            config.keys_path.replace('~', Self::home_dir().to_str().expect("can't get home dir"));
         config.template_file_path = template_path;
         args.bastion.is_some().then(|| config.bastion_name = args.bastion.clone());
         config.update = config.update || args.update;

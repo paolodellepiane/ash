@@ -121,26 +121,20 @@ fn get_sts_creds(AwsConfig { profile, role_arn, region, .. }: AwsConfig,
     Ok(Credential { access_key, secret, token, profile, region, expiration })
 }
 
-fn get_env_credentials() -> Option<Credential> {
-    match (var("AWS_ACCESS_KEY_ID"), var("AWS_SECRET_ACCESS_KEY"), var("AWS_DEFAULT_REGION")) {
-        (Ok(access_key), Ok(secret), Ok(region)) => Some(Credential { profile: "default".into(),
-                                                                      access_key,
-                                                                      secret,
-                                                                      region,
-                                                                      ..Credential::default() }),
-        _ => None,
-    }
+fn get_env_credentials() -> Result<Credential> {
+    Ok(Credential { profile: "default".into(),
+                    access_key: var("AWS_ACCESS_KEY_ID")?,
+                    secret: var("AWS_SECRET_ACCESS_KEY")?,
+                    region: var("AWS_DEFAULT_REGION")?,
+                    ..Credential::default() })
 }
 
-fn get_shared_credentials() -> Option<Vec<Credential>> {
+fn get_shared_credentials() -> Result<Vec<Credential>> {
     let user_dirs = Config::user_dirs();
     let aws_credentials = user_dirs.home_dir().join(".aws").join("credentials");
     let aws_config = user_dirs.home_dir().join(".aws").join("config");
-    if !aws_credentials.exists() {
-        return None;
-    }
     let confs: HashMap<_, _> = if aws_config.exists() {
-        let config_ini = Ini::load_from_file(&aws_config).expect("Can't load aws config");
+        let config_ini = Ini::load_from_file(&aws_config).context("Can't load aws config")?;
         config_ini.iter()
                   .map(|(sec, props)| {
                       let mut profile = sec.unwrap().to_string();
@@ -160,7 +154,7 @@ fn get_shared_credentials() -> Option<Vec<Credential>> {
 
     // todo: expand source profiles
     let mut creds: HashMap<_, _> =
-        Ini::load_from_file(&aws_credentials).expect("Can't load aws credentials")
+        Ini::load_from_file(&aws_credentials).context("Can't load aws credentials")?
                                              .iter()
                                              .filter_map(|(sec, props)| {
                                                  let profile = sec?.to_string();
@@ -180,10 +174,12 @@ fn get_shared_credentials() -> Option<Vec<Credential>> {
                                              .collect();
 
     if let Ok(cache) = File::open(Config::cache_path()) {
-        let cached_creds: Vec<Credential> =
-            serde_json::from_reader(cache).context("deserializing cache").ok()?;
-        for cc in cached_creds.into_iter().filter(|x| !x.is_expired()) {
-            creds.insert(cc.profile.clone(), cc);
+        if let Ok(cached_creds) = serde_json::from_reader::<File, Vec<Credential>>(cache) {
+            for cc in cached_creds.into_iter().filter(|x| !x.is_expired()) {
+                creds.insert(cc.profile.clone(), cc);
+            }
+        } else {
+            p!("Error deserializing cache. Credential cache cleared");
         }
     }
 
@@ -216,12 +212,12 @@ fn get_shared_credentials() -> Option<Vec<Credential>> {
         Err(err) => p!("Can't serialize cache; {err:#}"),
     }
 
-    Some(creds.into_values().collect_vec())
+    Ok(creds.into_values().collect_vec())
 }
 
-fn get_credentials() -> Option<Vec<Credential>> {
-    if let Some(cred) = get_env_credentials() {
-        return Some(vec![cred]);
+fn get_credentials() -> Result<Vec<Credential>> {
+    if let Ok(cred) = get_env_credentials() {
+        return Ok(vec![cred]);
     }
     get_shared_credentials()
 }
@@ -295,7 +291,7 @@ pub fn update_sshconfig(keys_path: impl AsRef<Path>,
                         -> Result<()> {
     let keys_path = keys_path.as_ref();
     let mut srvs: Vec<Instance> = Vec::new();
-    let credentials = &get_credentials().expect("No credentials found");
+    let credentials = &get_credentials().context("No credentials found")?;
     ensure!(!credentials.is_empty(), "No credentials found");
     thread::scope(|scope| {
         let threads: Vec<_> = credentials.iter()
@@ -315,7 +311,7 @@ pub fn update_sshconfig(keys_path: impl AsRef<Path>,
     });
     let tmpl = std::fs::read_to_string(template)?;
     let res = Handlebars::new().render_template(&tmpl, &to_json(srvs))?;
-    let ssh_config = directories::UserDirs::new().expect("can't retrieve home directory")
+    let ssh_config = directories::UserDirs::new().context("can't retrieve home directory")?
                                                  .home_dir()
                                                  .join(".ssh")
                                                  .join("config");

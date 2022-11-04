@@ -23,7 +23,7 @@ pub const COMMON_SSH_ARGS: &[&str] = &["-o",
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
 pub struct AshArgs {
-    /// Remote host
+    #[arg(name("[profile:]host"), help("Remote Host"))]
     pub host: Option<String>,
     /// Update ssh config
     #[clap(short, long, default_value_t = false)]
@@ -86,6 +86,8 @@ pub struct Config {
     pub bastion_name: Option<String>,
     #[serde(default)]
     pub update: bool,
+    #[serde(default)]
+    pub merge_profiles: bool,
 }
 
 impl Config {

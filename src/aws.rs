@@ -7,7 +7,7 @@ use http::Request;
 use ini::Ini;
 use itertools::Itertools;
 use minreq::{Response, URL};
-use roxmltree::Node;
+use roxmltree::{Document, Node};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env::var;
@@ -42,6 +42,12 @@ trait NodeExt {
 impl<'a, 'input> NodeExt for Node<'a, 'input> {
     fn find_tag(&self, name: &str) -> Option<Node> {
         self.children().find(|t| t.has_tag_name(name))
+    }
+}
+
+impl<'input> NodeExt for Document<'input> {
+    fn find_tag(&self, name: &str) -> Option<Node> {
+        self.descendants().find(|t| t.has_tag_name(name))
     }
 }
 
@@ -114,26 +120,22 @@ fn get_sts_creds(
     }
     let doc = roxmltree::Document::parse(res.as_str()?)?;
     let access_key = doc
-        .descendants()
-        .find(|n| n.has_tag_name("AccessKeyId"))
+        .find_tag("AccessKeyId")
         .and_then(|x| x.text())
         .ok_or_else(|| anyhow!("can't get access_key for {profile}"))?
         .to_string();
     let secret = doc
-        .descendants()
-        .find(|n| n.has_tag_name("SecretAccessKey"))
+        .find_tag("SecretAccessKey")
         .and_then(|x| x.text())
         .ok_or_else(|| anyhow!("can't get secret for {profile}"))?
         .to_string();
     let token = doc
-        .descendants()
-        .find(|n| n.has_tag_name("SessionToken"))
+        .find_tag("SessionToken")
         .and_then(|x| x.text())
         .ok_or_else(|| anyhow!("can't get token for {profile}"))?
         .to_string();
     let expiration = doc
-        .descendants()
-        .find(|n| n.has_tag_name("Expiration"))
+        .find_tag("Expiration")
         .and_then(|x| x.text())
         .ok_or_else(|| anyhow!("can't get expiration for {profile}"))?
         .to_string();

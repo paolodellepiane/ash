@@ -10,7 +10,10 @@ pub trait ThrutyOptionStringExt {
     fn is_truthy(&self) -> bool;
 }
 
-impl<S> ThrutyOptionStringExt for Option<S> where S: Deref<Target = str> {
+impl<S> ThrutyOptionStringExt for Option<S>
+where
+    S: Deref<Target = str>,
+{
     fn is_falsy(&self) -> bool {
         self.is_none() || self.as_ref().unwrap().is_empty()
     }

@@ -76,17 +76,31 @@ fn select_profile_then_host(
     message: &str,
     Hosts { hosts, start_value, .. }: &Hosts,
 ) -> Result<String> {
-    let values = if start_value.is_some() {
-        hosts.iter().map(|(name, _)| name.clone()).collect_vec()
-    } else {
-        let profiles = hosts.iter().map(|(_, h)| h.profile.clone()).unique().collect_vec();
-        let profile = select("Choose Profile...", profiles, start_value)?;
-        hosts
-            .iter()
-            .filter_map(|(_, h)| (h.profile == profile).then_some(h.name.clone()))
-            .collect_vec()
-    };
-    select(message, values, start_value)
+    match start_value.as_deref() {
+        Some(start_value) if start_value.contains(':') => {
+            let (start_profile, start_host) = start_value.split_once(':').unwrap();
+            let profiles = hosts.iter().map(|(_, h)| h.profile.clone()).unique().collect_vec();
+            let profile = select("Choose Profile...", profiles, &OptionNotEmptyString::from(start_profile))?;
+            let values = hosts
+                .iter()
+                .filter_map(|(_, h)| (h.profile == profile).then_some(h.name.clone()))
+                .collect_vec();
+            select(message, values, &OptionNotEmptyString::from(start_host))
+        },
+        Some(_) => {
+            let values = hosts.iter().map(|(name, _)| name.clone()).collect_vec();
+            select(message, values, start_value)
+        },
+        None => {
+            let profiles = hosts.iter().map(|(_, h)| h.profile.clone()).unique().collect_vec();
+            let profile = select("Choose Profile...", profiles, &OptionNotEmptyString::from(""))?;
+            let values = hosts
+                .iter()
+                .filter_map(|(_, h)| (h.profile == profile).then_some(h.name.clone()))
+                .collect_vec();
+            select(message, values, &OptionNotEmptyString::from(""))
+        }
+    }
 }
 
 fn run() -> Result<()> {
@@ -98,7 +112,6 @@ fn run() -> Result<()> {
             config.bastion_name.as_deref(),
         )?;
     }
-
     let hosts = parse_hosts()?;
     let hosts = &Hosts {
         hosts,

@@ -104,14 +104,14 @@ fn run() -> Result<()> {
     let hosts = parse_hosts()?;
     let hosts = &Hosts {
         hosts,
-        start_value: args.host.clone().into(),
-        bastion: config.bastion_name.clone().into(),
+        start_value: args.host.clone(),
+        bastion: config.bastion_name.clone(),
     };
     match &args.command {
-        Some(Commands::Cp(cp)) => Scp::new(&cp, hosts)?.exec(),
-        Some(Commands::Service { service }) => Tunnel::from_service(&service, hosts)?.exec(),
+        Some(Commands::Cp(cp)) => Scp::new(cp, hosts)?.exec(),
+        Some(Commands::Service { service }) => Tunnel::from_service(service, hosts)?.exec(),
         Some(Commands::Tunnel(tunnel)) => Tunnel::from_ports(*tunnel, hosts)?.exec(),
-        Some(Commands::Exec { command }) => Exec::new(&command, hosts)?.exec(),
+        Some(Commands::Exec { command }) => Exec::new(command, hosts)?.exec(),
         None => Ssh::new(hosts)?.exec(),
     }
 }

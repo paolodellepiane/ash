@@ -71,6 +71,10 @@ fn select_profile_then_host(
     message: &str,
     Hosts { hosts, start_value, .. }: &Hosts,
 ) -> Result<String> {
+    if CFG.0.merge_profiles {
+        let values = hosts.iter().map(|(name, _)| name.clone()).collect_vec();
+        return select(message, values, start_value.clone())
+    }
     let _select_profile_then_host = |(start_profile, start_host): (&str, &str)| {
         let profiles = hosts.iter().map(|(_, h)| h.profile.clone()).unique().collect_vec();
         let profile = select("Choose Profile...", profiles, Some(start_profile.to_string()))?;
@@ -123,6 +127,5 @@ fn main() -> Result<()> {
             Some(_) => (),
         }
     }
-
     Ok(())
 }

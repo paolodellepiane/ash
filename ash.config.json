@@ -1,5 +1,6 @@
 {
   "keys_path": "~/.ssh",
   "bastion_name": "",
-  "update": false
+  "update": false,
+  "merge_profiles": false
 }

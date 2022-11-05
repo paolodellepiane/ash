@@ -3,7 +3,6 @@ use crate::config::COMMON_SSH_ARGS;
 use crate::prelude::*;
 use crate::select_profile_then_host;
 use crate::Host;
-use crate::NotEmptyString;
 use clap::arg;
 use clap::Args;
 use std::collections::HashMap;
@@ -15,8 +14,8 @@ pub trait Executable {
 
 pub struct Hosts {
     pub hosts: HashMap<String, Host>,
-    pub start_value: NotEmptyString,
-    pub bastion: NotEmptyString,
+    pub start_value: Option<String>,
+    pub bastion: Option<String>,
 }
 
 #[derive(Args, Clone, Copy)]
@@ -105,9 +104,9 @@ impl Scp {
         fn expand_remote(s: &str, hosts: &Hosts) -> Result<(String, Option<Host>)> {
             if let Some((start_value, path)) = s.split_once(':') {
                 let hosts = &Hosts {
-                    start_value: start_value.into(),
+                    start_value: Some(start_value.to_string()),
                     hosts: hosts.hosts.clone(),
-                    bastion: NotEmptyString::none(),
+                    bastion: None,
                 };
                 let choice = select_profile_then_host("Choose Remote...", hosts)?;
                 let host @ Host { name, .. } = &hosts.hosts[&choice];

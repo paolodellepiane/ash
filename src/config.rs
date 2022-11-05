@@ -4,6 +4,7 @@ use crate::{
 };
 use clap::{Parser, Subcommand, ValueEnum};
 use directories::UserDirs;
+use once_cell::sync::Lazy;
 use serde::Deserialize;
 use std::{
     fs::File,
@@ -157,3 +158,7 @@ impl Config {
         Ok((config, args))
     }
 }
+
+pub static CFG: Lazy<(Config, AshArgs)> = Lazy::new(|| {
+    Config::load().expect("Can't load config")
+});

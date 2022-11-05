@@ -276,7 +276,7 @@ fn update_from_aws_api(
             let instance = i.first_element_child()?;
             let key = instance.find_tag("keyName")?.text()?;
             let key = keys_path.as_ref().join(key).to_str()?.to_string();
-            let address_tag = if proxy_jump.is_falsy() { "ipAddress" } else { "privateIpAddress" };
+            let address_tag = if proxy_jump.is_none_or_empty() { "ipAddress" } else { "privateIpAddress" };
             let address = instance.find_tag(address_tag)?.text()?.to_string();
             let mut tag_set_items = instance.find_tag("tagSet")?.children();
             let tag_name =

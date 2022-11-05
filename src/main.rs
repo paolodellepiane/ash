@@ -1,6 +1,6 @@
 #![warn(clippy::all)]
 use aws::update_sshconfig;
-use config::{Commands, Config};
+use config::{Commands, Config, CFG};
 use executable::{Exec, Executable, Hosts, Scp, Ssh, Tunnel};
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use inquire::{InquireError, Select};
@@ -13,7 +13,6 @@ mod aws;
 mod config;
 mod describe_instances;
 mod executable;
-mod not_empty_string;
 mod prelude;
 
 #[derive(Clone, Debug, Serialize)]
@@ -44,7 +43,7 @@ fn parse_hosts() -> Result<HashMap<String, Host>> {
     Ok(res)
 }
 
-fn select(message: &str, options: Vec<String>, start_value: &NotEmptyString) -> Result<String> {
+fn select(message: &str, options: Vec<String>, start_value: Option<String>) -> Result<String> {
     let matcher = SkimMatcherV2::default().ignore_case();
     let options = options
         .into_iter()
@@ -74,12 +73,12 @@ fn select_profile_then_host(
 ) -> Result<String> {
     let _select_profile_then_host = |(start_profile, start_host): (&str, &str)| {
         let profiles = hosts.iter().map(|(_, h)| h.profile.clone()).unique().collect_vec();
-        let profile = select("Choose Profile...", profiles, &start_profile.into())?;
+        let profile = select("Choose Profile...", profiles, Some(start_profile.to_string()))?;
         let values = hosts
             .iter()
             .filter_map(|(_, h)| (h.profile == profile).then_some(h.name.clone()))
             .collect_vec();
-        select(message, values, &start_host.into())
+        select(message, values, Some(start_host.to_string()))
     };
     match start_value.as_deref() {
         Some(start_value) if start_value.contains(':') => {
@@ -87,14 +86,14 @@ fn select_profile_then_host(
         }
         Some(_) => {
             let values = hosts.iter().map(|(name, _)| name.clone()).collect_vec();
-            select(message, values, start_value)
+            select(message, values, start_value.clone())
         }
         None => _select_profile_then_host(("", "")),
     }
 }
 
 fn run() -> Result<()> {
-    let (config, args) = &mut Config::load()?;
+    let (config, args) = &*CFG;
     if config.update {
         update_sshconfig(
             &config.keys_path,
@@ -109,10 +108,10 @@ fn run() -> Result<()> {
         bastion: config.bastion_name.clone().into(),
     };
     match &args.command {
-        Some(Commands::Cp(cp)) => Scp::new(cp, hosts)?.exec(),
-        Some(Commands::Service { service }) => Tunnel::from_service(service, hosts)?.exec(),
+        Some(Commands::Cp(cp)) => Scp::new(&cp, hosts)?.exec(),
+        Some(Commands::Service { service }) => Tunnel::from_service(&service, hosts)?.exec(),
         Some(Commands::Tunnel(tunnel)) => Tunnel::from_ports(*tunnel, hosts)?.exec(),
-        Some(Commands::Exec { command }) => Exec::new(command, hosts)?.exec(),
+        Some(Commands::Exec { command }) => Exec::new(&command, hosts)?.exec(),
         None => Ssh::new(hosts)?.exec(),
     }
 }

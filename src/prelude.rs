@@ -1,25 +1,24 @@
-pub use crate::not_empty_string::*;
 pub use anyhow::{anyhow, bail, ensure, Context, Result};
 pub use std::format as f;
-use std::ops::Deref;
 pub use std::println as p;
 use std::time::Instant;
 
-pub trait ThrutyOptionStringExt {
-    fn is_falsy(&self) -> bool;
-    fn is_truthy(&self) -> bool;
+pub trait OptionStringExt<S>
+where S: AsRef<str> {
+    fn is_none_or_empty(&self) -> bool;
+    fn not_empty(self) -> Option<S>;
 }
 
-impl<S> ThrutyOptionStringExt for Option<S>
+impl<S> OptionStringExt<S> for Option<S>
 where
-    S: Deref<Target = str>,
+    S: AsRef<str>,
 {
-    fn is_falsy(&self) -> bool {
-        self.is_none() || self.as_ref().unwrap().is_empty()
+    fn is_none_or_empty(&self) -> bool {
+        self.is_none() || self.as_ref().unwrap().as_ref().is_empty()
     }
 
-    fn is_truthy(&self) -> bool {
-        !self.is_falsy()
+    fn not_empty(self) -> Option<S> {
+        self.filter(|x| !x.as_ref().is_empty())
     }
 }
 

@@ -5,15 +5,21 @@ use executable::{Exec, Executable, Hosts, Scp, Ssh, Tunnel};
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use inquire::{InquireError, Select};
 use itertools::Itertools;
+use pest_derive::Parser;
 use prelude::*;
 use serde::Serialize;
 use std::{collections::HashMap, fmt::Debug};
+use pest::Parser;
 
 mod aws;
 mod config;
 mod describe_instances;
 mod executable;
 mod prelude;
+
+extern crate pest;
+#[macro_use]
+extern crate pest_derive;
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Host {
@@ -24,24 +30,50 @@ pub struct Host {
     pub key: Option<String>,
 }
 
+#[derive(Parser)]
+#[grammar = "res/sshconfig.pest"]
+pub struct SshConfigParser;
+
+// https://www.ssh.com/academy/ssh/config
 fn parse_hosts() -> Result<HashMap<String, Host>> {
-    const HOSTS: &str = r"(?smU)# generated\s*\[(?P<profile>\S*)\]\s*?$.*Host\s*(?P<name>\S*)\s*$\s*HostName\s*(?P<address>\S*)\s*$\s*User\s*(?P<user>\S*)\s*$\s*IdentityFile\s*(?P<key>\S*)\s*$";
     let ssh_config_path = Config::home_dir().join(".ssh").join("config");
     let ssh_config = std::fs::read_to_string(ssh_config_path)?;
-    // let _guard = stopwatch("ssh parse");
-    let res: HashMap<_, _> = regex::Regex::new(HOSTS)?
-        .captures_iter(&ssh_config)
-        .filter_map(|c| {
-            let profile = c.name("profile")?.as_str().to_string();
-            let name = c.name("name")?.as_str().to_string();
-            let address = c.name("address")?.as_str().to_string();
-            let user = c.name("user")?.as_str().to_string();
-            let key = c.name("key").map(|x| String::from(x.as_str()));
-            Some((name.clone(), Host { name, profile, address, user, key }))
-        })
-        .collect();
-    Ok(res)
+    let _guard = stopwatch("ssh parse");
+    let res = SshConfigParser::parse(Rule::file, &ssh_config)?;
+    let hosts: HashMap<_, _> = HashMap::new();
+    for line in res.into_iter() {
+        match line.as_rule() {
+            Rule::comment => (),
+            Rule::host => (),
+            Rule::option => {
+                p!("uhm");
+            }
+            _ => (),
+        }
+    }
+
+    Ok(hosts)
 }
+
+
+// fn parse_hosts_old() -> Result<HashMap<String, Host>> {
+//     const HOSTS: &str = r"(?smU)# generated\s*\[(?P<profile>\S*)\]\s*?$.*Host\s*(?P<name>\S*)\s*$\s*HostName\s*(?P<address>\S*)\s*$\s*User\s*(?P<user>\S*)\s*$\s*IdentityFile\s*(?P<key>\S*)\s*$";
+//     let ssh_config_path = Config::home_dir().join(".ssh").join("config");
+//     let ssh_config = std::fs::read_to_string(ssh_config_path)?;
+//     // let _guard = stopwatch("ssh parse");
+//     let res: HashMap<_, _> = regex::Regex::new(HOSTS)?
+//         .captures_iter(&ssh_config)
+//         .filter_map(|c| {
+//             let profile = c.name("profile")?.as_str().to_string();
+//             let name = c.name("name")?.as_str().to_string();
+//             let address = c.name("address")?.as_str().to_string();
+//             let user = c.name("user")?.as_str().to_string();
+//             let key = c.name("key").map(|x| String::from(x.as_str()));
+//             Some((name.clone(), Host { name, profile, address, user, key }))
+//         })
+//         .collect();
+//     Ok(res)
+// }
 
 fn select(message: &str, options: Vec<String>, start_value: Option<String>) -> Result<String> {
     let matcher = SkimMatcherV2::default().ignore_case();

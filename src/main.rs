@@ -1,9 +1,9 @@
 #![warn(clippy::all)]
 use aws::update_sshconfig;
 use config::{Commands, CFG};
+use dialoguer::{theme::ColorfulTheme, FuzzySelect};
 use executable::*;
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
-use inquire::{InquireError, Select};
 use itertools::Itertools;
 use prelude::*;
 use ssh_config_parser::parse_host_ssh_config;
@@ -30,13 +30,13 @@ fn select(message: &str, options: Vec<String>, start_value: Option<String>) -> R
     if options.len() == 1 && start_value.is_some() {
         return Ok(options[0].clone());
     }
-    let ans = Select::new(message, options)
-        .with_filter(&|filter: &str, _, string_value: &str, _| -> bool {
-            matcher.fuzzy_match(string_value, filter).is_some()
-        })
-        .prompt()?;
+    let selection = FuzzySelect::with_theme(&ColorfulTheme::default())
+        .with_prompt(message)
+        .default(0)
+        .items(&options)
+        .interact()?;
 
-    Ok(ans)
+    Ok(options[selection].clone())
 }
 
 fn select_profile_then_host(
@@ -45,11 +45,15 @@ fn select_profile_then_host(
 ) -> Result<String> {
     if CFG.0.merge_profiles {
         let values = hosts.iter().map(|(name, _)| name.clone()).collect_vec();
-        return select(message, values, start_value.clone())
+        return select(message, values, start_value.clone());
     }
     let _select_profile_then_host = |(start_profile, start_host): (&str, &str)| {
         let profiles = hosts.iter().map(|(_, h)| h.profile.clone()).unique().collect_vec();
-        let profile = select("Choose Profile...", profiles, Some(start_profile.to_string()))?;
+        let profile = select(
+            "Choose Profile...",
+            profiles,
+            Some(start_profile.to_string()),
+        )?;
         let values = hosts
             .iter()
             .filter_map(|(_, h)| (h.profile == profile).then_some(h.name.clone()))
@@ -78,11 +82,8 @@ fn run() -> Result<()> {
         )?;
     }
     let hosts = parse_host_ssh_config()?;
-    let hosts = &Hosts {
-        hosts,
-        start_value: args.host.clone(),
-        bastion: config.bastion_name.clone(),
-    };
+    let hosts =
+        &Hosts { hosts, start_value: args.host.clone(), bastion: config.bastion_name.clone() };
     match &args.command {
         Some(Commands::Cp(cp)) => Scp::new(cp, hosts)?.exec(),
         Some(Commands::Service { service }) => Tunnel::from_service(service, hosts)?.exec(),
@@ -94,11 +95,6 @@ fn run() -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    if let Err(err) = run() {
-        match err.downcast_ref::<InquireError>() {
-            None => bail!(err),
-            Some(_) => (),
-        }
-    }
+    run()?;
     Ok(())
 }

@@ -6,8 +6,8 @@ Host mybastionexample
     User ubuntu
 
 {{#each this as |t| }}
-# generated [{{t.profile}}]
 Host {{t.name}}
+# profile {{t.profile}}
     HostName {{t.address}}
     User ubuntu
     IdentityFile {{t.key}}

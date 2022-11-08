@@ -20,9 +20,7 @@
                 }
             },
             "args": [
-                "Github",
-                "exec",
-                "env"
+                "-u"
             ],
             "cwd": "${workspaceFolder}"
         },

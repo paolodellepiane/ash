@@ -1,7 +1,11 @@
 #![warn(clippy::all)]
 use aws::update_sshconfig;
 use config::{Commands, CFG};
-use dialoguer::{theme::ColorfulTheme, FuzzySelect, console::{Style, Color}};
+use dialoguer::{
+    console::{Color, Style},
+    theme::ColorfulTheme,
+    FuzzySelect,
+};
 use executable::*;
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use itertools::Itertools;
@@ -17,33 +21,31 @@ mod ssh_config_parser;
 
 fn select(message: &str, options: Vec<String>, start_value: Option<String>) -> Result<String> {
     let matcher = SkimMatcherV2::default().ignore_case();
-    if let Some(sv) = start_value {
-        let scores = options
-            .iter()
-            .enumerate()
-            .filter_map(|(i, x)| {
-                matcher.fuzzy_match(&x, &sv).map(|score| (i, score))
-            })
-            .sorted_by_key(|x| x.1)
-            .rev()
-            .collect_vec();
-        if scores.len() == 1 {
-            return Ok(options[scores[0].0].clone());
+    if options.is_empty() {
+        bail!("Host list is empty");
+    }
+    if let Some(sv) = start_value.clone() {
+        let filtered =
+            options.iter().filter_map(|x| matcher.fuzzy_match(x, &sv).map(|_| x)).collect_vec();
+        if filtered.len() == 1 {
+            return Ok(filtered[0].clone());
         }
-        if scores.is_empty() {
-            bail!("No host found");    
+        if filtered.is_empty() {
+            bail!("No host found");
         }
     }
-    let theme = ColorfulTheme { 
+    let theme = ColorfulTheme {
         active_item_style: Style::new().fg(Color::Green),
         fuzzy_match_highlight_style: Style::new().fg(Color::Green),
         ..ColorfulTheme::default()
     };
+    let start_value = start_value.unwrap_or_default();
     let selection = FuzzySelect::with_theme(&theme)
         .with_prompt(message)
+        .with_initial_text(start_value)
+        .default(0)
         .items(&options)
         .interact()?;
-
     Ok(options[selection].clone())
 }
 

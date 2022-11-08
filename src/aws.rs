@@ -269,7 +269,6 @@ fn update_from_aws_api(
             res.reason_phrase
         )
     }
-    std::fs::write("pippo.xml", res.as_str()?)?;
     let doc = roxmltree::Document::parse(res.as_str()?)?;
     let instances = doc
         .descendants()

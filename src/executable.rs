@@ -187,7 +187,7 @@ pub struct Code {
 
 impl Code {
     pub fn new(hosts: &Hosts) -> Result<Self> {
-        let choice = select_profile_then_host("Connect to Host...", hosts)?;
+        let choice = select_profile_then_host("Select Host...", hosts)?;
         Ok(Self { host: hosts.hosts[&choice].clone() })
     }
 }

@@ -5,20 +5,17 @@ use executable::{Exec, Executable, Hosts, Scp, Ssh, Tunnel};
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use inquire::{InquireError, Select};
 use itertools::Itertools;
-use pest::Parser;
 use pest_derive::Parser;
 use prelude::*;
 use serde::Serialize;
 use std::{collections::HashMap, fmt::Debug};
+use pest::Parser;
 
 mod aws;
 mod config;
 mod describe_instances;
 mod executable;
 mod prelude;
-
-extern crate pest;
-extern crate pest_derive;
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Host {
@@ -46,38 +43,29 @@ fn parse_hosts() -> Result<HashMap<String, Host>> {
             Rule::host => {
                 current_host = line.into_inner().next().unwrap().as_str();
                 hosts.entry(current_host).or_default();
-            }
+            },
             Rule::profile => {
                 let profile = line.into_inner().next().unwrap().as_str();
-                hosts
-                    .get_mut(current_host)
-                    .expect("Error parsing sshconfig")
-                    .insert("profile".to_string(), profile);
-            }
+                hosts.get_mut(current_host).unwrap().insert("profile".to_string(), profile);
+            },
             Rule::option => {
                 let rules = &mut line.into_inner();
                 let keyword = rules.next().unwrap().as_str();
                 let argument = rules.next().unwrap().as_str();
-                hosts
-                    .get_mut(current_host)
-                    .expect("Error parsing sshconfig")
-                    .insert(keyword.to_lowercase(), argument);
-            }
+                hosts.get_mut(current_host).unwrap().insert(keyword.to_lowercase(), argument);
+            },
             _ => (),
         }
     }
-    let res: HashMap<_, _> = hosts
-        .into_iter()
-        .filter_map(|(name, o)| {
+    let res: HashMap<_, _> = hosts.into_iter().filter_map(|(name, o)| {
             let name = name.to_string();
             let profile = o.get("profile").copied().unwrap_or("others").to_string();
             let address = o.get("hostname")?.to_string();
             let user = o.get("user").copied().map(String::from);
             let key = o.get("identityfile").copied().map(String::from);
             Some((name.clone(), Host { name, profile, address, user, key }))
-        })
-        .collect();
-    Ok(dbg!(res))
+    }).collect();
+    Ok(res)
 }
 
 fn select(message: &str, options: Vec<String>, start_value: Option<String>) -> Result<String> {
@@ -110,15 +98,11 @@ fn select_profile_then_host(
 ) -> Result<String> {
     if CFG.0.merge_profiles {
         let values = hosts.iter().map(|(name, _)| name.clone()).collect_vec();
-        return select(message, values, start_value.clone());
+        return select(message, values, start_value.clone())
     }
     let _select_profile_then_host = |(start_profile, start_host): (&str, &str)| {
         let profiles = hosts.iter().map(|(_, h)| h.profile.clone()).unique().collect_vec();
-        let profile = select(
-            "Choose Profile...",
-            profiles,
-            Some(start_profile.to_string()),
-        )?;
+        let profile = select("Choose Profile...", profiles, Some(start_profile.to_string()))?;
         let values = hosts
             .iter()
             .filter_map(|(_, h)| (h.profile == profile).then_some(h.name.clone()))
@@ -147,8 +131,11 @@ fn run() -> Result<()> {
         )?;
     }
     let hosts = parse_hosts()?;
-    let hosts =
-        &Hosts { hosts, start_value: args.host.clone(), bastion: config.bastion_name.clone() };
+    let hosts = &Hosts {
+        hosts,
+        start_value: args.host.clone(),
+        bastion: config.bastion_name.clone(),
+    };
     match &args.command {
         Some(Commands::Cp(cp)) => Scp::new(cp, hosts)?.exec(),
         Some(Commands::Service { service }) => Tunnel::from_service(service, hosts)?.exec(),

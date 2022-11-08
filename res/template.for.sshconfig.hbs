@@ -9,7 +9,7 @@ Host mybastionexample
 Host {{t.name}}
 # profile {{t.profile}}
     HostName {{t.address}}
-    User ubuntu
+    User {{t.user}}
     IdentityFile {{t.key}}
     {{#if t.proxy_jump}}ProxyJump {{t.proxy_jump}}{{/if}}
 {{/each}}

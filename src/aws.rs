@@ -23,6 +23,7 @@ struct Instance {
     profile: String,
     platform: String,
     proxy_jump: Option<String>,
+    user: String,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
@@ -268,6 +269,7 @@ fn update_from_aws_api(
             res.reason_phrase
         )
     }
+    std::fs::write("pippo.xml", res.as_str()?)?;
     let doc = roxmltree::Document::parse(res.as_str()?)?;
     let instances = doc
         .descendants()
@@ -284,11 +286,13 @@ fn update_from_aws_api(
             let name = tag_name.find_tag("value")?.text()?;
             let name = name.to_string().replace(' ', "-");
             let platform = instance.find_tag("platformDetails")?.text()?.to_string();
+            let user = if platform == "Windows" { "administrator" } else { "ubuntu" }.to_string();
             Some(Instance {
                 name,
                 key,
                 address,
                 platform,
+                user,
                 profile: cred.profile.to_owned(),
                 proxy_jump: proxy_jump.map(String::from),
             })

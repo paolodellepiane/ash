@@ -1,7 +1,7 @@
 #![warn(clippy::all)]
 use aws::update_sshconfig;
 use config::{Commands, CFG};
-use executable::{Exec, Executable, Hosts, Scp, Ssh, Tunnel};
+use executable::*;
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use inquire::{InquireError, Select};
 use itertools::Itertools;
@@ -88,6 +88,7 @@ fn run() -> Result<()> {
         Some(Commands::Service { service }) => Tunnel::from_service(service, hosts)?.exec(),
         Some(Commands::Tunnel(tunnel)) => Tunnel::from_ports(*tunnel, hosts)?.exec(),
         Some(Commands::Exec { command }) => Exec::new(command, hosts)?.exec(),
+        Some(Commands::Code) => Code::new(hosts)?.exec(),
         None => Ssh::new(hosts)?.exec(),
     }
 }

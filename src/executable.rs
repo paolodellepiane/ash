@@ -156,7 +156,6 @@ impl Executable for Ssh {
         let Host { name, .. } = &self.host;
         p!("Connecting to {name}...");
         Command::new("ssh").args(COMMON_SSH_ARGS).arg(name).status()?;
-
         Ok(())
     }
 }
@@ -178,7 +177,26 @@ impl Executable for Exec {
         let Self { command, host: Host { name, .. } } = self;
         p!("Executing on {name}...");
         Command::new("ssh").args(COMMON_SSH_ARGS).args([name, command]).status()?;
+        Ok(())
+    }
+}
 
+pub struct Code {
+    host: Host,
+}
+
+impl Code {
+    pub fn new(hosts: &Hosts) -> Result<Self> {
+        let choice = select_profile_then_host("Connect to Host...", hosts)?;
+        Ok(Self { host: hosts.hosts[&choice].clone() })
+    }
+}
+
+impl Executable for Code {
+    fn exec(&self) -> Result<()> {
+        let Self { host: Host { name, .. } } = self;
+        p!("Connect vscode to remote host {name}...");
+        Command::new("code").args(["--folder-uri", &f!("vscode-remote://ssh-remote+{name}/")]).status()?;
         Ok(())
     }
 }

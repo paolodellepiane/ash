@@ -20,7 +20,8 @@
                 }
             },
             "args": [
-                "-u"
+                "test:dev13lnx",
+                "code"
             ],
             "cwd": "${workspaceFolder}"
         },

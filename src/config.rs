@@ -37,9 +37,9 @@ pub struct AshArgs {
     /// Clear credentials cache
     #[clap(long, default_value_t = false)]
     pub clear_cache: bool,
-    /// Open config file
+    /// Open config directory
     #[clap(long, default_value_t = false)]
-    pub open_config: bool,
+    pub open_config_dir: bool,
     /// Verbose
     #[clap(long, default_value_t = false)]
     pub verbose: bool,
@@ -144,7 +144,7 @@ impl Config {
         if args.clear_cache {
             std::fs::remove_file(Self::cache_path())?
         }
-        if args.open_config {
+        if args.open_config_dir {
             #[cfg(target_os = "macos")]
             Command::new("open").arg(Self::config_dir()).status()?;
             #[cfg(target_os = "windows")]

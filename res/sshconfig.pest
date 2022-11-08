@@ -5,6 +5,6 @@ comment = _{ (" "* ~ "#" ~ (!NEWLINE ~ ANY)*) | " "+ }
 options_separator = _{ " "* ~ "=" ~ " "* | " "+ }
 keyword = @{ char+ }
 argument = @{ char+ | "\"" ~ char_in_quotes+ ~ "\"" }
-host = { " "* ~ ^"host" ~ options_separator ~ argument }
-option = { " "* ~ keyword ~ options_separator ~ argument }
+host = { " "* ~ ^"host" ~ options_separator ~ argument ~ " "*}
+option = { " "* ~ keyword ~ options_separator ~ argument ~ " "* }
 file = { SOI ~ ((profile|host|option|comment)? ~ NEWLINE)* ~ EOI }

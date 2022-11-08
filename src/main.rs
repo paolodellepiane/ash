@@ -1,72 +1,19 @@
 #![warn(clippy::all)]
 use aws::update_sshconfig;
-use config::{Commands, Config, CFG};
+use config::{Commands, CFG};
 use executable::{Exec, Executable, Hosts, Scp, Ssh, Tunnel};
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use inquire::{InquireError, Select};
 use itertools::Itertools;
-use pest_derive::Parser;
 use prelude::*;
-use serde::Serialize;
-use std::{collections::HashMap, fmt::Debug};
-use pest::Parser;
+use ssh_config_parser::parse_host_ssh_config;
 
 mod aws;
 mod config;
 mod describe_instances;
 mod executable;
 mod prelude;
-
-#[derive(Clone, Debug, Serialize)]
-pub struct Host {
-    pub name: String,
-    pub profile: String,
-    pub address: String,
-    pub user: Option<String>,
-    pub key: Option<String>,
-}
-
-#[derive(Parser)]
-#[grammar = "res/sshconfig.pest"]
-pub struct SshConfigParser;
-
-// https://www.ssh.com/academy/ssh/config
-fn parse_hosts() -> Result<HashMap<String, Host>> {
-    let ssh_config_path = Config::home_dir().join(".ssh").join("config");
-    let ssh_config = std::fs::read_to_string(ssh_config_path)?;
-    // let _guard = stopwatch("ssh parse");
-    let res = SshConfigParser::parse(Rule::file, &ssh_config)?.next().unwrap();
-    let mut hosts: HashMap<&str, HashMap<String, &str>> = HashMap::new();
-    let mut current_host = "";
-    for line in res.into_inner() {
-        match line.as_rule() {
-            Rule::host => {
-                current_host = line.into_inner().next().unwrap().as_str();
-                hosts.entry(current_host).or_default();
-            },
-            Rule::profile => {
-                let profile = line.into_inner().next().unwrap().as_str();
-                hosts.get_mut(current_host).unwrap().insert("profile".to_string(), profile);
-            },
-            Rule::option => {
-                let rules = &mut line.into_inner();
-                let keyword = rules.next().unwrap().as_str();
-                let argument = rules.next().unwrap().as_str();
-                hosts.get_mut(current_host).unwrap().insert(keyword.to_lowercase(), argument);
-            },
-            _ => (),
-        }
-    }
-    let res: HashMap<_, _> = hosts.into_iter().filter_map(|(name, o)| {
-            let name = name.to_string();
-            let profile = o.get("profile").copied().unwrap_or("others").to_string();
-            let address = o.get("hostname")?.to_string();
-            let user = o.get("user").copied().map(String::from);
-            let key = o.get("identityfile").copied().map(String::from);
-            Some((name.clone(), Host { name, profile, address, user, key }))
-    }).collect();
-    Ok(res)
-}
+mod ssh_config_parser;
 
 fn select(message: &str, options: Vec<String>, start_value: Option<String>) -> Result<String> {
     let matcher = SkimMatcherV2::default().ignore_case();
@@ -130,7 +77,7 @@ fn run() -> Result<()> {
             config.bastion_name.as_deref(),
         )?;
     }
-    let hosts = parse_hosts()?;
+    let hosts = parse_host_ssh_config()?;
     let hosts = &Hosts {
         hosts,
         start_value: args.host.clone(),

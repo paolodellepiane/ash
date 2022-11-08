@@ -125,6 +125,7 @@ impl Config {
                 p!("can't remove config folder {:?}: {err:?}",
                    Self::config_path());
             }
+            exit(0)
         }
         std::fs::create_dir_all(Self::config_dir())?;
         if !config_path.exists() {

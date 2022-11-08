@@ -2,7 +2,7 @@ use crate::config::Service;
 use crate::config::COMMON_SSH_ARGS;
 use crate::prelude::*;
 use crate::select_profile_then_host;
-use crate::Host;
+use crate::ssh_config_parser::Host;
 use clap::arg;
 use clap::Args;
 use std::collections::HashMap;

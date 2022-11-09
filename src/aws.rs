@@ -1,10 +1,10 @@
 use crate::config::Config;
+use crate::parsers::ini_parser::{parse_ini_from_file};
 use crate::prelude::*;
 use aws_sigv4::http_request::{sign, SignableRequest, SigningParams, SigningSettings};
 use handlebars::{to_json, Handlebars};
 use http::request::Parts;
 use http::Request;
-use ini::Ini;
 use itertools::Itertools;
 use minreq::{Response, URL};
 use roxmltree::{Document, Node};
@@ -159,17 +159,18 @@ fn get_shared_credentials() -> Result<Vec<Credential>> {
     let aws_credentials = user_dirs.home_dir().join(".aws").join("credentials");
     let aws_config = user_dirs.home_dir().join(".aws").join("config");
     let confs: HashMap<_, _> = if aws_config.exists() {
-        let config_ini = Ini::load_from_file(&aws_config).context("Can't load aws config")?;
+        let config_ini = parse_ini_from_file(&aws_config).context("Can't load aws config")?;
         config_ini
-            .iter()
+            .into_iter()
+            .filter(|(sec, _)| !sec.is_empty())
             .map(|(sec, props)| {
-                let mut profile = sec.unwrap().to_string();
+                let mut profile = sec;
                 if profile.starts_with("profile ") {
                     profile = profile.strip_prefix("profile ").unwrap().to_string();
                 }
-                let region = props.get("region").unwrap_or_default().to_string();
-                let role_arn = props.get("role_arn").unwrap_or_default().to_string();
-                let source_profile = props.get("source_profile").unwrap_or_default().to_string();
+                let region = props.get("region").cloned().unwrap_or_default();
+                let role_arn = props.get("role_arn").cloned().unwrap_or_default();
+                let source_profile = props.get("source_profile").cloned().unwrap_or_default();
                 (
                     profile.clone(),
                     AwsConfig { profile, region, role_arn, source_profile },
@@ -181,13 +182,13 @@ fn get_shared_credentials() -> Result<Vec<Credential>> {
     };
 
     // todo: expand source profiles
-    let mut creds: HashMap<_, _> = Ini::load_from_file(&aws_credentials)
+    let mut creds: HashMap<_, _> = parse_ini_from_file(&aws_credentials)
         .context("Can't load aws credentials")?
-        .iter()
-        .filter_map(|(sec, props)| {
-            let profile = sec?.to_string();
-            let access_key = props.get("aws_access_key_id")?.to_string();
-            let secret = props.get("aws_secret_access_key")?.to_string();
+        .into_iter()
+        .filter(|(sec, _)| !sec.is_empty())
+        .filter_map(|(profile, props)| {
+            let access_key = props.get("aws_access_key_id")?.clone();
+            let secret = props.get("aws_secret_access_key")?.clone();
             let region = confs.get(&profile).map(|c| c.region.clone())?;
             Some((
                 profile.clone(),

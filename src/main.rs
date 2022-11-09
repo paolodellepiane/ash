@@ -9,15 +9,15 @@ use dialoguer::{
 use executable::*;
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use itertools::Itertools;
+use parsers::ssh_config_parser::parse_ssh_config_from_host;
 use prelude::*;
-use ssh_config_parser::parse_host_ssh_config;
 
 mod aws;
 mod config;
 mod describe_instances;
 mod executable;
 mod prelude;
-mod ssh_config_parser;
+mod parsers;
 
 fn select(message: &str, options: Vec<String>, start_value: Option<String>) -> Result<String> {
     let matcher = SkimMatcherV2::default().ignore_case();
@@ -91,7 +91,7 @@ fn run() -> Result<()> {
             config.bastion_name.as_deref(),
         )?;
     }
-    let hosts = parse_host_ssh_config()?;
+    let hosts = parse_ssh_config_from_host()?;
     let hosts =
         &Hosts { hosts, start_value: args.host.clone(), bastion: config.bastion_name.clone() };
     match &args.command {

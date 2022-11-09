@@ -14,7 +14,7 @@ pub struct Host {
 }
 
 #[derive(Parser)]
-#[grammar = "res/sshconfig.pest"]
+#[grammar = "parsers/pegs/sshconfig.pest"]
 pub struct SshConfigParser;
 
 // https://www.ssh.com/academy/ssh/config
@@ -53,7 +53,7 @@ pub fn parse_ssh_config(content: &str) -> Result<HashMap<String, Host>> {
     Ok(res)
 }
 
-pub fn parse_host_ssh_config() -> Result<HashMap<String, Host>> {
+pub fn parse_ssh_config_from_host() -> Result<HashMap<String, Host>> {
     let ssh_config_path = Config::home_dir().join(".ssh").join("config");
     let ssh_config = std::fs::read_to_string(ssh_config_path)?;
     parse_ssh_config(&ssh_config)

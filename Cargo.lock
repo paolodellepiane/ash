@@ -28,7 +28,7 @@ checksum = "216261ddc8289130e551ddcd5ce8a064710c0d064a4d2895c67151c92b5443f6"
 
 [[package]]
 name = "ash"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "anyhow",
  "aws-sigv4",

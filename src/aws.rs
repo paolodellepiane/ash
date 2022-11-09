@@ -296,7 +296,7 @@ fn update_from_aws_api(
                 platform,
                 user,
                 profile,
-                proxy_jump: proxy_jump.map(|bastion| f!("{bastion}-{}", cred.profile)),
+                proxy_jump: proxy_jump.not_empty().map(|bastion| f!("{bastion}-{}", cred.profile)),
             })
         })
         .collect_vec();

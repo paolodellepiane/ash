@@ -28,7 +28,7 @@ pub fn parse_ini(content: &str) -> Result<HashMap<String, HashMap<String, String
             _ => ()
         }
     }
-    Ok(dbg!(profiles))
+    Ok(profiles)
 }
 
 pub fn parse_ini_from_file(path: impl AsRef<Path>) -> Result<HashMap<String, HashMap<String, String>>> {

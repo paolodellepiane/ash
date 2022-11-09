@@ -1,5 +1,5 @@
 use crate::config::Config;
-use crate::parsers::ini_parser::{parse_ini_from_file};
+use crate::parsers::ini_parser::parse_ini_from_file;
 use crate::prelude::*;
 use aws_sigv4::http_request::{sign, SignableRequest, SigningParams, SigningSettings};
 use handlebars::{to_json, Handlebars};
@@ -278,7 +278,8 @@ fn update_from_aws_api(
             let instance = i.first_element_child()?;
             let key = instance.find_tag("keyName")?.text()?;
             let key = keys_path.as_ref().join(key).to_str()?.to_string();
-            let address_tag = if proxy_jump.is_none_or_empty() { "ipAddress" } else { "privateIpAddress" };
+            let address_tag =
+                if proxy_jump.is_none_or_empty() { "ipAddress" } else { "privateIpAddress" };
             let address = instance.find_tag(address_tag)?.text()?.to_string();
             let mut tag_set_items = instance.find_tag("tagSet")?.children();
             let tag_name =
@@ -287,14 +288,15 @@ fn update_from_aws_api(
             let name = name.to_string().replace(' ', "-");
             let platform = instance.find_tag("platformDetails")?.text()?.to_string();
             let user = if platform == "Windows" { "administrator" } else { "ubuntu" }.to_string();
+            let profile = cred.profile.clone();
             Some(Instance {
                 name,
                 key,
                 address,
                 platform,
                 user,
-                profile: cred.profile.to_owned(),
-                proxy_jump: proxy_jump.map(String::from),
+                profile,
+                proxy_jump: proxy_jump.map(|bastion| f!("{bastion}-{}", cred.profile)),
             })
         })
         .collect_vec();

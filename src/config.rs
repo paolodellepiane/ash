@@ -37,13 +37,13 @@ pub struct AshArgs {
     /// Clear credentials cache
     #[clap(long, default_value_t = false)]
     pub clear_cache: bool,
-    /// Open config directory
+    /// Open config with vscode
     #[clap(long, default_value_t = false)]
-    pub open_config_dir: bool,
+    pub config: bool,
     /// Verbose
     #[clap(long, default_value_t = false)]
     pub verbose: bool,
-    /// Setup ssh config with provided bastion
+    /// Setup ssh config with bastion calculated as <bastion>-<profile>
     #[clap(short, long)]
     pub bastion: Option<String>,
     #[command(subcommand)]
@@ -144,14 +144,9 @@ impl Config {
         if args.clear_cache {
             std::fs::remove_file(Self::cache_path())?
         }
-        if args.open_config_dir {
-            #[cfg(target_os = "macos")]
-            Command::new("open").arg(Self::config_dir()).status()?;
-            #[cfg(target_os = "windows")]
-            Command::new("explorer").arg(Self::config_dir()).status()?;
-            #[cfg(all(not(target_os = "macos"), not(target_os = "windows")))]
-            p!("Not supported on current platform");
-            exit(0);
+        if args.config {
+            Command::new("code").arg(Self::config_dir()).status()?;
+            exit(0)
         }
         let config = File::open(&config_path).context(f!("can't find config: {config_path:?}"))?;
         let mut config: Config =

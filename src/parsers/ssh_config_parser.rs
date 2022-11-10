@@ -57,8 +57,9 @@ pub fn parse_ssh_config(content: &str) -> Result<HashMap<String, Host>> {
 }
 
 pub fn parse_ssh_config_from_host() -> Result<HashMap<String, Host>> {
-    let ssh_config_path = Config::home_dir().join(".ssh").join("config");
-    let ssh_config = std::fs::read_to_string(ssh_config_path)?;
+    let path = Config::home_dir().join(".ssh").join("config");
+    let ssh_config =
+        std::fs::read_to_string(&path).context(f!("can't read {path:?}"))?;
     parse_ssh_config(&ssh_config)
 }
 

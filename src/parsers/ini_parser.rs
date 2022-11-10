@@ -34,7 +34,7 @@ pub fn parse_ini(content: &str) -> Result<HashMap<String, HashMap<String, String
 pub fn parse_ini_from_file(
     path: impl AsRef<Path>,
 ) -> Result<HashMap<String, HashMap<String, String>>> {
-    let content = std::fs::read_to_string(path)?;
+    let content = std::fs::read_to_string(&path).context(f!("can't read {:?}", path.as_ref()))?;
     parse_ini(&content)
 }
 

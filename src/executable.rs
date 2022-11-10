@@ -45,7 +45,7 @@ impl Tunnel {
         let bastion = hosts
             .hosts
             .get(bastion.as_deref().unwrap())
-            .ok_or_else(|| anyhow!("Can't find bastion {bastion:?}"))?
+            .ok_or_else(|| eyre!("Can't find bastion {bastion:?}"))?
             .clone();
         let choice = select_profile_then_host("Tunnel to...", hosts)?;
         let host = hosts.hosts[&choice].clone();

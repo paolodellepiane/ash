@@ -1,4 +1,6 @@
-pub use anyhow::{anyhow, bail, ensure, Context, Result};
+pub use color_eyre::{
+    eyre::bail, eyre::ensure, eyre::eyre, eyre::ContextCompat, eyre::WrapErr, Context, Result,
+};
 pub use std::format as f;
 pub use std::println as p;
 use std::time::Instant;

@@ -123,22 +123,22 @@ fn get_sts_creds(
     let access_key = doc
         .find_tag("AccessKeyId")
         .and_then(|x| x.text())
-        .ok_or_else(|| anyhow!("can't get access_key for {profile}"))?
+        .ok_or_else(|| eyre!("can't get access_key for {profile}"))?
         .to_string();
     let secret = doc
         .find_tag("SecretAccessKey")
         .and_then(|x| x.text())
-        .ok_or_else(|| anyhow!("can't get secret for {profile}"))?
+        .ok_or_else(|| eyre!("can't get secret for {profile}"))?
         .to_string();
     let token = doc
         .find_tag("SessionToken")
         .and_then(|x| x.text())
-        .ok_or_else(|| anyhow!("can't get token for {profile}"))?
+        .ok_or_else(|| eyre!("can't get token for {profile}"))?
         .to_string();
     let expiration = doc
         .find_tag("Expiration")
         .and_then(|x| x.text())
-        .ok_or_else(|| anyhow!("can't get expiration for {profile}"))?
+        .ok_or_else(|| eyre!("can't get expiration for {profile}"))?
         .to_string();
 
     Ok(Credential { access_key, secret, token, profile, region, expiration })

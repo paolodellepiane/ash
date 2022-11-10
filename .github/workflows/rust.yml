@@ -14,25 +14,25 @@ jobs:
     name: Rust project
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Install latest stable
         uses: actions-rs/toolchain@v1
         with:
             toolchain: stable
-            components: rustfmt, clippy
-      - name: Run cargo check
+            components: clippy
+      - name: fmt
         uses: actions-rs/cargo@v1
         with:
           command: fmt
-      - name: Run cargo check
+      - name: clippy
         uses: actions-rs/cargo@v1
         with:
           command: clippy
       - name: Run cargo test
         uses: actions-rs/cargo@v1
         with:
-          command: test --verbose
+          command: test
       - name: Run cargo build
         uses: actions-rs/cargo@v1
         with:
-          command: build --release --verbose
+          command: build

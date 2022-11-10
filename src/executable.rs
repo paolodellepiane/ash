@@ -47,7 +47,7 @@ impl Tunnel {
             .get(bastion.as_deref().unwrap())
             .ok_or_else(|| eyre!("Can't find bastion {bastion:?}"))?
             .clone();
-        let choice = select_profile_then_host("Tunnel to...", hosts)?;
+        let choice = select_profile_then_host(hosts)?;
         let host = hosts.hosts[&choice].clone();
 
         Ok(Self { local, remote, host, bastion })
@@ -102,13 +102,13 @@ pub struct Scp {
 impl Scp {
     pub fn new(ScpArgs { from, to }: &ScpArgs, hosts: &Hosts) -> Result<Self> {
         fn expand_remote(s: &str, hosts: &Hosts) -> Result<(String, Option<Host>)> {
-            if let Some((start_value, path)) = s.split_once(':') {
+            if let Some((start_value, path)) = s.rsplit_once(':') {
                 let hosts = &Hosts {
                     start_value: Some(start_value.to_string()),
                     hosts: hosts.hosts.clone(),
                     bastion: None,
                 };
-                let choice = select_profile_then_host("Choose Remote...", hosts)?;
+                let choice = select_profile_then_host(hosts)?;
                 let host @ Host { name, .. } = &hosts.hosts[&choice];
                 let res = f!("{name}:{path}");
                 Ok((res, Some(host.clone())))
@@ -146,7 +146,7 @@ pub struct Ssh {
 
 impl Ssh {
     pub fn new(hosts: &Hosts) -> Result<Self> {
-        let choice = select_profile_then_host("Connect to Host...", hosts)?;
+        let choice = select_profile_then_host(hosts)?;
         Ok(Self { host: hosts.hosts[&choice].clone() })
     }
 }
@@ -167,7 +167,7 @@ pub struct Exec {
 
 impl Exec {
     pub fn new(command: &str, hosts: &Hosts) -> Result<Self> {
-        let choice = select_profile_then_host("Execute on Host...", hosts)?;
+        let choice = select_profile_then_host(hosts)?;
         Ok(Self { host: hosts.hosts[&choice].clone(), command: command.to_string() })
     }
 }
@@ -187,7 +187,7 @@ pub struct Code {
 
 impl Code {
     pub fn new(hosts: &Hosts) -> Result<Self> {
-        let choice = select_profile_then_host("Select Host...", hosts)?;
+        let choice = select_profile_then_host(hosts)?;
         Ok(Self { host: hosts.hosts[&choice].clone() })
     }
 }

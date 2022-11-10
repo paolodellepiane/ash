@@ -20,7 +20,10 @@
                 }
             },
             "args": [
-                "-u"
+                "-u",
+                "cp",
+                "test:pippo.toml",
+                "."
             ],
             "cwd": "${workspaceFolder}"
         },

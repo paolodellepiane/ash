@@ -50,34 +50,27 @@ fn select(message: &str, options: Vec<String>, start_value: Option<String>) -> R
     Ok(options[selection].clone())
 }
 
-fn select_profile_then_host(
-    message: &str,
-    Hosts { hosts, start_value, .. }: &Hosts,
-) -> Result<String> {
+fn select_profile_then_host(Hosts { hosts, start_value, .. }: &Hosts) -> Result<String> {
     if CFG.0.merge_profiles {
         let values = hosts.iter().map(|(name, _)| name.clone()).collect_vec();
-        return select(message, values, start_value.clone());
+        return select("", values, start_value.clone());
     }
     let _select_profile_then_host = |(start_profile, start_host): (&str, &str)| {
         let profiles = hosts.iter().map(|(_, h)| h.profile.clone()).unique().collect_vec();
-        let profile = select(
-            "Choose Profile...",
-            profiles,
-            Some(start_profile.to_string()),
-        )?;
+        let profile = select("", profiles, Some(start_profile.to_string()))?;
         let values = hosts
             .iter()
             .filter_map(|(_, h)| (h.profile == profile).then_some(h.name.clone()))
             .collect_vec();
-        select(message, values, Some(start_host.to_string()))
+        select(&f!("[{profile}]"), values, Some(start_host.to_string()))
     };
-    match start_value.as_deref() {
+    match start_value.as_ref().not_empty() {
         Some(start_value) if start_value.contains(':') => {
             _select_profile_then_host(start_value.split_once(':').unwrap())
         }
         Some(_) => {
             let values = hosts.iter().map(|(name, _)| name.clone()).collect_vec();
-            select(message, values, start_value.clone())
+            select("", values, start_value.clone())
         }
         None => _select_profile_then_host(("", "")),
     }

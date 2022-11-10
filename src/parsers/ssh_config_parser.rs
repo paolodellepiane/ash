@@ -1,8 +1,8 @@
-use std::collections::HashMap;
-use crate::{prelude::*, config::Config};
-use pest_derive::Parser;
+use crate::{config::Config, prelude::*};
 use pest::Parser;
+use pest_derive::Parser;
 use serde::Serialize;
+use std::collections::HashMap;
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Host {
@@ -28,28 +28,31 @@ pub fn parse_ssh_config(content: &str) -> Result<HashMap<String, Host>> {
             Rule::host => {
                 current_host = line.into_inner().next().unwrap().as_str();
                 hosts.entry(current_host).or_default();
-            },
+            }
             Rule::profile => {
                 let profile = line.into_inner().next().unwrap().as_str();
                 hosts.get_mut(current_host).unwrap().insert("profile".to_string(), profile);
-            },
+            }
             Rule::option => {
                 let rules = &mut line.into_inner();
                 let keyword = rules.next().unwrap().as_str();
                 let argument = rules.next().unwrap().as_str();
                 hosts.get_mut(current_host).unwrap().insert(keyword.to_lowercase(), argument);
-            },
+            }
             _ => (),
         }
     }
-    let res: HashMap<_, _> = hosts.into_iter().filter_map(|(name, o)| {
+    let res: HashMap<_, _> = hosts
+        .into_iter()
+        .filter_map(|(name, o)| {
             let name = name.to_string();
             let profile = o.get("profile").copied().unwrap_or("others").to_string();
             let address = o.get("hostname")?.to_string();
             let user = o.get("user").copied().map(String::from);
             let key = o.get("identityfile").copied().map(String::from);
             Some((name.clone(), Host { name, profile, address, user, key }))
-    }).collect();
+        })
+        .collect();
     Ok(res)
 }
 
@@ -58,7 +61,6 @@ pub fn parse_ssh_config_from_host() -> Result<HashMap<String, Host>> {
     let ssh_config = std::fs::read_to_string(ssh_config_path)?;
     parse_ssh_config(&ssh_config)
 }
-
 
 #[cfg(test)]
 mod tests {

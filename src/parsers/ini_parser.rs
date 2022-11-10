@@ -1,7 +1,7 @@
-use std::{collections::HashMap, path::Path};
 use crate::prelude::*;
-use pest_derive::Parser;
 use pest::Parser;
+use pest_derive::Parser;
+use std::{collections::HashMap, path::Path};
 
 #[derive(Parser)]
 #[grammar = "parsers/pegs/ini.pest"]
@@ -18,20 +18,22 @@ pub fn parse_ini(content: &str) -> Result<HashMap<String, HashMap<String, String
             Rule::section => {
                 current_section = line.into_inner().next().unwrap().as_str().to_string();
                 profiles.entry(current_section.clone()).or_default();
-            },
+            }
             Rule::property => {
                 let rules = &mut line.into_inner();
                 let name = rules.next().unwrap().as_str();
                 let value = rules.next().unwrap().as_str().to_string();
                 profiles.get_mut(&current_section).unwrap().insert(name.to_lowercase(), value);
-            },
-            _ => ()
+            }
+            _ => (),
         }
     }
     Ok(profiles)
 }
 
-pub fn parse_ini_from_file(path: impl AsRef<Path>) -> Result<HashMap<String, HashMap<String, String>>> {
+pub fn parse_ini_from_file(
+    path: impl AsRef<Path>,
+) -> Result<HashMap<String, HashMap<String, String>>> {
     let content = std::fs::read_to_string(path)?;
     parse_ini(&content)
 }

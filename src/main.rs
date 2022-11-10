@@ -16,8 +16,8 @@ mod aws;
 mod config;
 mod describe_instances;
 mod executable;
-mod prelude;
 mod parsers;
+mod prelude;
 
 fn select(message: &str, options: Vec<String>, start_value: Option<String>) -> Result<String> {
     let matcher = SkimMatcherV2::default().ignore_case();

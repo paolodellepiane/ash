@@ -4,7 +4,9 @@ pub use std::println as p;
 use std::time::Instant;
 
 pub trait OptionStringExt<S>
-where S: AsRef<str> {
+where
+    S: AsRef<str>,
+{
     fn is_none_or_empty(&self) -> bool;
     fn not_empty(self) -> Option<S>;
 }

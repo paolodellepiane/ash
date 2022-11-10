@@ -1,8 +1,8 @@
 use crate::config::Service;
 use crate::config::COMMON_SSH_ARGS;
+use crate::parsers::ssh_config_parser::Host;
 use crate::prelude::*;
 use crate::select_profile_then_host;
-use crate::parsers::ssh_config_parser::Host;
 use clap::arg;
 use clap::Args;
 use std::collections::HashMap;
@@ -196,7 +196,9 @@ impl Executable for Code {
     fn exec(&self) -> Result<()> {
         let Self { host: Host { name, .. } } = self;
         p!("Connect vscode to remote host {name}...");
-        Command::new("code").args(["--folder-uri", &f!("vscode-remote://ssh-remote+{name}/")]).status()?;
+        Command::new("code")
+            .args(["--folder-uri", &f!("vscode-remote://ssh-remote+{name}/")])
+            .status()?;
         Ok(())
     }
 }

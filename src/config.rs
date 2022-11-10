@@ -87,8 +87,6 @@ pub enum Commands {
 pub struct Config {
     pub keys_path: String,
     #[serde(default)]
-    pub template_file_path: PathBuf,
-    #[serde(default)]
     pub bastion_name: Option<String>,
     #[serde(default)]
     pub update: bool,
@@ -126,11 +124,10 @@ impl Config {
         let config_path = Self::config_path();
         let template_path = Self::template_path();
         if args.reset {
-            if let Err(err) = std::fs::remove_dir_all(Self::config_dir()) {
-                p!(
-                    "can't remove config folder {:?}: {err:?}",
-                    Self::config_path()
-                );
+            if config_path.exists() {
+                std::fs::remove_file(template_path).context("can't reset template")?;
+                std::fs::remove_file(config_path).context("can't reset config")?;
+                std::fs::remove_file(Self::cache_path()).context("can't reset cache")?;
             }
             exit(0)
         }
@@ -138,11 +135,11 @@ impl Config {
         if !config_path.exists() {
             std::fs::write(&config_path, DEFAULT_CONFIG)?;
         }
-        if !template_path.exists() {
-            std::fs::write(&template_path, DEFAULT_TEMPLATE)?;
+        if !Self::template_path().exists() {
+            std::fs::write(&Self::template_path(), DEFAULT_TEMPLATE)?;
         }
         if args.clear_cache {
-            std::fs::remove_file(Self::cache_path())?
+            std::fs::remove_file(Self::cache_path()).context("can't clear cache")?;
         }
         if args.config {
             Command::new("code").arg(Self::config_dir()).status()?;
@@ -153,11 +150,9 @@ impl Config {
             serde_json::from_reader(config).context("Error deserializing config")?;
         config.keys_path =
             config.keys_path.replace('~', Self::home_dir().to_str().expect("can't get home dir"));
-        config.template_file_path = template_path;
         args.bastion.is_some().then(|| config.bastion_name = args.bastion.clone());
         config.update = config.update || args.update;
         args.verbose.then(|| p!("{config:?}"));
-
         Ok((config, args))
     }
 }

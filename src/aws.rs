@@ -329,7 +329,16 @@ pub fn update_sshconfig(
             }
         }
     });
-    let tmpl = std::fs::read_to_string(template)?;
+    let template_prefix = template.as_ref().to_string_lossy().as_ref().to_string() + ".prefix";
+    let template_suffix = template.as_ref().to_string_lossy().as_ref().to_string() + ".suffix";
+    let (prefix, suffix) = (Path::new(&template_prefix), Path::new(&template_suffix));
+    let mut tmpl = std::fs::read_to_string(template)?;
+    if prefix.exists() {
+        tmpl = std::fs::read_to_string(prefix)? + &tmpl;
+    }
+    if suffix.exists() {
+        tmpl = tmpl + &std::fs::read_to_string(suffix)?;
+    }
     let res = Handlebars::new().render_template(&tmpl, &to_json(srvs))?;
     let ssh_config = directories::UserDirs::new()
         .context("can't retrieve home directory")?

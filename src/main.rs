@@ -1,6 +1,6 @@
 #![warn(clippy::all)]
 use aws::update_sshconfig;
-use config::{Commands, CFG};
+use config::{Commands, CFG, Config};
 use dialoguer::{
     console::{Color, Style},
     theme::ColorfulTheme,
@@ -87,7 +87,7 @@ fn run() -> Result<()> {
     if config.update {
         update_sshconfig(
             &config.keys_path,
-            &config.template_file_path,
+            &Config::template_path(),
             config.bastion_name.as_deref(),
         )?;
     }

@@ -1,10 +1,3 @@
-Host *
-    StrictHostKeyChecking no
-
-Host mybastionexample
-    HostName 3.248.182.201
-    User ubuntu
-
 {{#each this as |t| }}
 Host {{t.name}}
 # profile {{t.profile}}

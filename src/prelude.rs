@@ -1,6 +1,4 @@
-pub use color_eyre::{
-    eyre::bail, eyre::ensure, eyre::eyre, eyre::ContextCompat, eyre::WrapErr, Context, Result,
-};
+pub use eyre::{bail, ensure, eyre, Context, ContextCompat, Result, WrapErr};
 pub use std::format as f;
 pub use std::println as p;
 use std::time::Instant;

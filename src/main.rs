@@ -1,6 +1,5 @@
 #![warn(clippy::all)]
 use aws::update_sshconfig;
-use color_eyre::config::HookBuilder;
 use config::{Commands, Config, CFG};
 use dialoguer::{
     console::{Color, Style},
@@ -101,7 +100,6 @@ fn run() -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    HookBuilder::default().display_env_section(false).install()?;
     run()?;
     Ok(())
 }

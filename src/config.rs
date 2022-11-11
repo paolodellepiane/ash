@@ -26,22 +26,22 @@ pub const COMMON_SSH_ARGS: &[&str] = &[
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
 pub struct AshArgs {
-    #[arg(name("[profile:]host"), help("Remote Host"), default_value = "")]
-    pub host: String,
+    #[arg(name("[profile:]host"), help("Remote Host"))]
+    pub host: Option<String>,
     /// Update ssh config
-    #[clap(short, long, default_value_t = false)]
+    #[arg(short, long, default_value_t = false)]
     pub update: bool,
     /// Reset to default configuration
-    #[clap(long, default_value_t = false)]
+    #[arg(long, default_value_t)]
     pub reset: bool,
     /// Clear credentials cache
-    #[clap(long, default_value_t = false)]
+    #[arg(long, default_value_t)]
     pub clear_cache: bool,
     /// Open config with vscode
-    #[clap(long, default_value_t = false)]
+    #[arg(long, default_value_t)]
     pub config: bool,
     /// Verbose
-    #[clap(long, default_value_t = false)]
+    #[arg(long, default_value_t)]
     pub verbose: bool,
     #[command(subcommand)]
     pub command: Option<Commands>,

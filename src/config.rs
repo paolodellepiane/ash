@@ -26,8 +26,8 @@ pub const COMMON_SSH_ARGS: &[&str] = &[
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
 pub struct AshArgs {
-    #[arg(name("[profile:]host"), help("Remote Host"))]
-    pub host: Option<String>,
+    #[arg(name("[profile:]host"), help("Remote Host"), default_value = "")]
+    pub host: String,
     /// Update ssh config
     #[clap(short, long, default_value_t = false)]
     pub update: bool,
@@ -43,9 +43,6 @@ pub struct AshArgs {
     /// Verbose
     #[clap(long, default_value_t = false)]
     pub verbose: bool,
-    /// Setup ssh config with bastion calculated as <bastion>-<profile>
-    #[clap(short, long)]
-    pub bastion: Option<String>,
     #[command(subcommand)]
     pub command: Option<Commands>,
 }
@@ -87,7 +84,7 @@ pub enum Commands {
 pub struct Config {
     pub keys_path: String,
     #[serde(default)]
-    pub bastion_name: Option<String>,
+    pub bastion_name: String,
     #[serde(default)]
     pub update: bool,
     #[serde(default)]
@@ -150,7 +147,6 @@ impl Config {
             serde_json::from_reader(config).context("Error deserializing config")?;
         config.keys_path =
             config.keys_path.replace('~', Self::home_dir().to_str().expect("can't get home dir"));
-        args.bastion.is_some().then(|| config.bastion_name = args.bastion.clone());
         config.update = config.update || args.update;
         args.verbose.then(|| p!("{config:?}"));
         Ok((config, args))

@@ -22,7 +22,7 @@ struct Instance {
     key: String,
     profile: String,
     platform: String,
-    proxy_jump: Option<String>,
+    proxy_jump: String,
     user: String,
 }
 
@@ -250,7 +250,7 @@ fn get_credentials() -> Result<Vec<Credential>> {
 fn update_from_aws_api(
     keys_path: impl AsRef<Path>,
     cred: &Credential,
-    proxy_jump: Option<&str>,
+    proxy_jump: &str,
 ) -> Result<Vec<Instance>> {
     let region = &cred.region;
     let describe_instances = f!("https://ec2.{region}.amazonaws.com/?Action=DescribeInstances&Version=2016-11-15&Filter.1.Name=instance-state-name&Filter.1.Value.1=running");
@@ -278,8 +278,7 @@ fn update_from_aws_api(
             let instance = i.first_element_child()?;
             let key = instance.find_tag("keyName")?.text()?;
             let key = keys_path.as_ref().join(key).to_str()?.to_string();
-            let address_tag =
-                if proxy_jump.is_none_or_empty() { "ipAddress" } else { "privateIpAddress" };
+            let address_tag = if proxy_jump.is_empty() { "ipAddress" } else { "privateIpAddress" };
             let address = instance.find_tag(address_tag)?.text()?.to_string();
             let mut tag_set_items = instance.find_tag("tagSet")?.children();
             let tag_name =
@@ -296,7 +295,11 @@ fn update_from_aws_api(
                 platform,
                 user,
                 profile,
-                proxy_jump: proxy_jump.not_empty().map(|bastion| f!("{bastion}-{}", cred.profile)),
+                proxy_jump: if proxy_jump.is_empty() {
+                    String::from("")
+                } else {
+                    f!("{proxy_jump}-{}", cred.profile)
+                },
             })
         })
         .collect_vec();
@@ -306,7 +309,7 @@ fn update_from_aws_api(
 pub fn update_sshconfig(
     keys_path: impl AsRef<Path>,
     template: impl AsRef<Path>,
-    proxy_jump: Option<&str>,
+    proxy_jump: &str,
 ) -> Result<()> {
     let keys_path = keys_path.as_ref();
     let mut srvs: Vec<Instance> = Vec::new();

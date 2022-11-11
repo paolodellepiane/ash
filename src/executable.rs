@@ -14,8 +14,8 @@ pub trait Executable {
 
 pub struct Hosts {
     pub hosts: HashMap<String, Host>,
-    pub start_value: Option<String>,
-    pub bastion: Option<String>,
+    pub start_value: String,
+    pub bastion: String,
 }
 
 #[derive(Args, Clone, Copy)]
@@ -39,17 +39,16 @@ impl Tunnel {
         TunnelArgs { local, remote }: TunnelArgs,
         hosts @ Hosts { bastion, .. }: &Hosts,
     ) -> Result<Self> {
-        if bastion.is_none() {
+        if bastion.is_empty() {
             bail!("Can't tunnel without bastion");
         }
         let bastion = hosts
             .hosts
-            .get(bastion.as_deref().unwrap())
+            .get(bastion)
             .ok_or_else(|| eyre!("Can't find bastion {bastion:?}"))?
             .clone();
         let choice = select_profile_then_host(hosts)?;
         let host = hosts.hosts[&choice].clone();
-
         Ok(Self { local, remote, host, bastion })
     }
 
@@ -60,7 +59,6 @@ impl Tunnel {
             Service::Rds => (5432, 5432),
             Service::RabbitMq => (5672, 5672),
         };
-
         Tunnel::from_ports(TunnelArgs { local, remote }, hosts)
     }
 }
@@ -104,9 +102,9 @@ impl Scp {
         fn expand_remote(s: &str, hosts: &Hosts) -> Result<(String, Option<Host>)> {
             if let Some((start_value, path)) = s.rsplit_once(':') {
                 let hosts = &Hosts {
-                    start_value: Some(start_value.to_string()),
+                    start_value: start_value.to_string(),
                     hosts: hosts.hosts.clone(),
-                    bastion: None,
+                    bastion: String::new(),
                 };
                 let choice = select_profile_then_host(hosts)?;
                 let host @ Host { name, .. } = &hosts.hosts[&choice];
@@ -125,7 +123,6 @@ impl Scp {
         let (from, from_host) = expand_remote(from, hosts)?;
         let (to, to_host) = expand_remote(to, hosts)?;
         from_host.or(to_host).context("No host found")?;
-
         Ok(Self { from, to })
     }
 }
@@ -135,7 +132,6 @@ impl Executable for Scp {
         let Self { from, to, .. } = self;
         p!("Copying from {from} to {to}...");
         Command::new("scp").args(COMMON_SSH_ARGS).args([from, to]).status()?;
-
         Ok(())
     }
 }

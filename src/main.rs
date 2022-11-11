@@ -20,14 +20,16 @@ mod executable;
 mod parsers;
 mod prelude;
 
-fn select(message: &str, options: Vec<String>, start_value: Option<String>) -> Result<String> {
+fn select(message: &str, options: Vec<String>, start_value: &str) -> Result<String> {
     let matcher = SkimMatcherV2::default().ignore_case();
     if options.is_empty() {
         bail!("Host list is empty");
     }
-    if let Some(sv) = start_value.clone() {
-        let filtered =
-            options.iter().filter_map(|x| matcher.fuzzy_match(x, &sv).map(|_| x)).collect_vec();
+    if !start_value.is_empty() {
+        let filtered = options
+            .iter()
+            .filter_map(|x| matcher.fuzzy_match(x, start_value).map(|_| x))
+            .collect_vec();
         if filtered.len() == 1 {
             return Ok(filtered[0].clone());
         }
@@ -40,7 +42,6 @@ fn select(message: &str, options: Vec<String>, start_value: Option<String>) -> R
         fuzzy_match_highlight_style: Style::new().fg(Color::Green),
         ..ColorfulTheme::default()
     };
-    let start_value = start_value.unwrap_or_default();
     let selection = FuzzySelect::with_theme(&theme)
         .with_prompt(message)
         .with_initial_text(start_value)
@@ -53,26 +54,24 @@ fn select(message: &str, options: Vec<String>, start_value: Option<String>) -> R
 fn select_profile_then_host(Hosts { hosts, start_value, .. }: &Hosts) -> Result<String> {
     if CFG.0.merge_profiles {
         let values = hosts.iter().map(|(name, _)| name.clone()).collect_vec();
-        return select("", values, start_value.clone());
+        return select("", values, start_value);
     }
     let _select_profile_then_host = |(start_profile, start_host): (&str, &str)| {
         let profiles = hosts.iter().map(|(_, h)| h.profile.clone()).unique().collect_vec();
-        let profile = select("", profiles, Some(start_profile.to_string()))?;
+        let profile = select("", profiles, start_profile)?;
         let values = hosts
             .iter()
             .filter_map(|(_, h)| (h.profile == profile).then_some(h.name.clone()))
             .collect_vec();
-        select(&f!("[{profile}]"), values, Some(start_host.to_string()))
+        select(&f!("[{profile}]"), values, start_host)
     };
-    match start_value.as_ref().not_empty() {
-        Some(start_value) if start_value.contains(':') => {
-            _select_profile_then_host(start_value.split_once(':').unwrap())
-        }
-        Some(_) => {
+    match start_value {
+        sv if sv.contains(':') => _select_profile_then_host(sv.split_once(':').unwrap()),
+        sv if sv.is_empty() => _select_profile_then_host(("", "")),
+        _ => {
             let values = hosts.iter().map(|(name, _)| name.clone()).collect_vec();
-            select("", values, start_value.clone())
+            select("", values, start_value)
         }
-        None => _select_profile_then_host(("", "")),
     }
 }
 
@@ -82,7 +81,7 @@ fn run() -> Result<()> {
         update_sshconfig(
             &config.keys_path,
             &Config::template_path(),
-            config.bastion_name.as_deref(),
+            &config.bastion_name,
         )?;
     }
     let hosts = parse_ssh_config_from_host()?;

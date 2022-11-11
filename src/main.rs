@@ -1,6 +1,4 @@
 #![warn(clippy::all)]
-use std::process::exit;
-
 use aws::update_sshconfig;
 use config::{Commands, Config, CFG};
 use dialoguer::{
@@ -13,6 +11,7 @@ use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use itertools::Itertools;
 use parsers::ssh_config_parser::parse_ssh_config_from_host;
 use prelude::*;
+use std::process::exit;
 
 mod aws;
 mod config;
@@ -103,6 +102,5 @@ fn run() -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    run()?;
-    Ok(())
+    run()
 }

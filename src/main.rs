@@ -1,4 +1,6 @@
 #![warn(clippy::all)]
+use std::process::exit;
+
 use aws::update_sshconfig;
 use config::{Commands, Config, CFG};
 use dialoguer::{
@@ -46,7 +48,8 @@ fn select(message: &str, options: Vec<String>, start_value: &str) -> Result<Stri
         .with_initial_text(start_value)
         .default(0)
         .items(&options)
-        .interact()?;
+        .interact_opt()?
+        .unwrap_or_else(|| exit(0));
     Ok(options[selection].clone())
 }
 

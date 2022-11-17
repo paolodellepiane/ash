@@ -20,7 +20,7 @@ pest = "2.4.1"
 pest_derive = "2.4.1"
 fuzzy-matcher = "0.3.7"
 eyre = { version = "0.6" }
-fltk = { version = "^1.3", features = ["fltk-bundled"] }
+fltk = "^1.3"
 fltk-theme = "0.6.0"
 strum = "0.24.1"
 strum_macros = "0.24.1"

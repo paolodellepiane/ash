@@ -234,7 +234,7 @@ fn main() -> Result<()> {
                 dispatch.send(Msg::Load)
             }
             Msg::Load => {
-                let hosts = parse_ssh_config_from_host().unwrap_or_default();
+                let hosts = parse_ssh_config_from_host()?;
                 state.hosts = hosts;
                 let profiles = ["all"]
                     .into_iter()

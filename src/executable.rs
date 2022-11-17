@@ -175,17 +175,31 @@ impl Executable for Ssh {
         let Host { name, .. } = &self.host;
         let cmd = COMMON_SSH_ARGS.join(" ") + " " + name;
         p!("Executing {cmd}...");
-        Command::new("osascript")
-            .args([
-                "-e",
-                &f!("tell app \"Terminal\" to do script \"ssh {cmd}\""),
-            ])
-            .spawn()?;
+        if cfg!(macos) {
+            Command::new("osascript")
+                .args([
+                    "-e",
+                    &f!("tell app \"Terminal\" to do script \"ssh {cmd}\""),
+                ])
+                .spawn()?;
+        } else if cfg!(windows) {
+            Command::new("cmd.exe")
+                .args([
+                    "/c",
+                    "start",
+                    "powershell",
+                    "-Command",
+                    "ssh GithubActionsRunner",
+                ])
+                .status()?;
+        } else {
+            bail!("not implemented for current os");
+        }
         Ok(())
     }
 }
 
-// pub struct Exec {
+// pub struct Exec {zz
 //     host: Host,
 //     command: String,
 // }

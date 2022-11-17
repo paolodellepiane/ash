@@ -9,10 +9,6 @@ pub const TEMPLATE_FILE_NAME: &str = "template.for.sshconfig.hbs";
 pub const DEFAULT_TEMPLATE: &str = include_str!("../res/template.for.sshconfig.hbs");
 pub const DEFAULT_CONFIG: &str = include_str!("../ash.config.json");
 pub const COMMON_SSH_ARGS: &[&str] = &[
-    "-o",
-    "StrictHostKeyChecking=no",
-    "-o",
-    "UserKnownHostsFile=/dev/null",
 ];
 
 // #[derive(Parser)]

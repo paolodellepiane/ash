@@ -9,8 +9,10 @@ pub struct Host {
     pub name: String,
     pub profile: String,
     pub address: String,
+    pub platform: String,
     pub user: Option<String>,
     pub key: Option<String>,
+    pub bastion: Option<String>,
 }
 
 #[derive(Parser)]
@@ -19,7 +21,7 @@ pub struct SshConfigParser;
 
 // https://www.ssh.com/academy/ssh/config
 pub fn parse_ssh_config(content: &str) -> Result<HashMap<String, Host>> {
-    // let _guard = stopwatch("ssh parse");
+    stopwatch!();
     let res = SshConfigParser::parse(Rule::file, content)?.next().unwrap();
     let mut hosts: HashMap<&str, HashMap<String, &str>> = HashMap::new();
     let mut current_host = "";
@@ -27,17 +29,26 @@ pub fn parse_ssh_config(content: &str) -> Result<HashMap<String, Host>> {
         match line.as_rule() {
             Rule::host => {
                 current_host = line.into_inner().next().unwrap().as_str();
-                hosts.entry(current_host).or_default();
             }
             Rule::profile => {
-                let profile = line.into_inner().next().unwrap().as_str();
-                hosts.get_mut(current_host).unwrap().insert("profile".to_string(), profile);
+                let description = line.into_inner().next().unwrap().as_str();
+                let (profile, platform) = description
+                    .split_once(',')
+                    .ok_or_else(|| eyre!("can't get profile and platform from '{description}'"))?;
+                hosts
+                    .entry(current_host)
+                    .or_default()
+                    .insert("profile".to_string(), profile.trim());
+                hosts
+                    .entry(current_host)
+                    .or_default()
+                    .insert("platform".to_string(), platform.trim());
             }
             Rule::option => {
                 let rules = &mut line.into_inner();
                 let keyword = rules.next().unwrap().as_str();
                 let argument = rules.next().unwrap().as_str();
-                hosts.get_mut(current_host).unwrap().insert(keyword.to_lowercase(), argument);
+                hosts.entry(current_host).or_default().insert(keyword.to_lowercase(), argument);
             }
             _ => (),
         }
@@ -47,10 +58,15 @@ pub fn parse_ssh_config(content: &str) -> Result<HashMap<String, Host>> {
         .filter_map(|(name, o)| {
             let name = name.to_string();
             let profile = o.get("profile").copied().unwrap_or("others").to_string();
+            let platform = o.get("platform").copied().unwrap_or("others").to_string();
             let address = o.get("hostname")?.to_string();
             let user = o.get("user").copied().map(String::from);
             let key = o.get("identityfile").copied().map(String::from);
-            Some((name.clone(), Host { name, profile, address, user, key }))
+            let bastion = o.get("proxyjump").copied().map(String::from);
+            Some((
+                name.clone(),
+                Host { name, profile, address, user, key, bastion, platform },
+            ))
         })
         .collect();
     Ok(res)

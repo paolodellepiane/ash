@@ -2,5 +2,16 @@
   "keys_path": "~/.ssh",
   "bastion_name": "",
   "update": false,
-  "merge_profiles": false
+  "merge_profiles": false,
+  "tunnels": {
+    "rdp": {
+      "remote": 3389,
+      "run": [
+        "open",
+        "-a",
+        "/Applications/Microsoft Remote Desktop.app",
+        "rdp://full%20address=s:localhost:${port}&audiomode=i:2&disable%20themes=i:1&username:s:${user}"
+      ]
+    }
+  }
 }

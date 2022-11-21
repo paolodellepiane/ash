@@ -35,7 +35,6 @@ dependencies = [
  "http",
  "itertools",
  "minreq",
- "once_cell",
  "pest",
  "pest_derive",
  "regex",

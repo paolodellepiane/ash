@@ -1,5 +1,5 @@
+use crate::config::Config;
 use crate::config::TunnelConfig;
-use crate::config::CFG;
 use crate::config::COMMON_SSH_ARGS;
 use crate::parsers::ssh_config_parser::Host;
 use crate::prelude::*;
@@ -30,10 +30,10 @@ pub struct Tunnel {
 }
 
 impl Tunnel {
-    pub fn new(name: &str, opt: &ExecOpt) -> Result<Self> {
+    pub fn new(name: &str, opt: &ExecOpt, cfg: &Config) -> Result<Self> {
         ensure!(!opt.host.is_empty(), "Host can't be empty");
         ensure!(!name.is_empty(), "Tunnel name can't be empty");
-        let tuns = &CFG.tunnels;
+        let tuns = &cfg.tunnels;
         let cfg = tuns
             .get(name)
             .ok_or_else(|| eyre!("Valid services are: {}", tuns.keys().join(", ")))?

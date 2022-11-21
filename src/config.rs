@@ -1,6 +1,5 @@
 use crate::prelude::*;
 use directories::UserDirs;
-use once_cell::sync::Lazy;
 use serde::Deserialize;
 use std::{collections::HashMap, fs::File, path::PathBuf};
 
@@ -140,5 +139,3 @@ impl Config {
         Ok(config)
     }
 }
-
-pub static CFG: Lazy<Config> = Lazy::new(|| Config::load().expect("Can't load config"));

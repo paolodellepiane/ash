@@ -106,6 +106,7 @@ struct App {
 }
 
 impl App {
+    #[rustfmt::skip]
     fn new(cfg: Config) -> Self {
         let app = app::App::default().load_system_fonts();
         fltkext::app::set_colors(*windowBackgroundColor, *controlAccentColor, *labelColor);
@@ -117,80 +118,69 @@ impl App {
         let mut win = window::Window::default().with_size(400, 300);
         win.make_resizable(true);
         let mut main = group::Flex::default().size_of_parent().column();
-        main.set_margin(10);
-        main.set_pad(10);
+            main.set_margin(10);
+            main.set_pad(10);
 
-        let mut filters = group::Flex::default().row();
-        main.set_size(&filters, 30);
-        let mut filter = input::Input::default();
-        filter.set_color(*controlColor);
-        filter.set_trigger(enums::CallbackTrigger::Changed);
-        filter.emit(sender.clone(), Msg::FilterChanged);
-        let mut profile = menu_choice("");
-        profile.emit(sender.clone(), Msg::FilterChanged);
-        let mut platform = menu_choice("");
-        platform.emit(sender.clone(), Msg::FilterChanged);
-        let mut update = button::Button::default().with_label("\u{f0de}").with_size(20, 20);
-        update.set_label_font(enums::Font::by_name("Wingdings-Regular"));
-        update.set_label_size(20);
-        update.set_color(Color::BackGround);
-        update.set_selection_color(Color::BackGround);
-        update.set_label_color(*systemGrayColor);
-        update.set_frame(FrameType::OFlatFrame);
-        update.emit(sender.clone(), Msg::UpdateSsh);
-        filters.set_size(&profile, 70);
-        filters.set_size(&platform, 70);
-        filters.set_size(&update, 20);
-        filters.end();
+            let mut filters = group::Flex::default().row();
+                main.set_size(&filters, 30);
+                let mut filter = input::Input::default();
+                    filter.set_color(*controlColor);
+                    filter.set_trigger(enums::CallbackTrigger::Changed);
+                    filter.emit(sender.clone(), Msg::FilterChanged);
+                let mut profile = menu_choice("");
+                    profile.emit(sender.clone(), Msg::FilterChanged);
+                let mut platform = menu_choice("");
+                    platform.emit(sender.clone(), Msg::FilterChanged);
+                let mut update = button::Button::default().with_label("\u{f0de}").with_size(20, 20);
+                    update.set_label_font(enums::Font::by_name("Wingdings-Regular"));
+                    update.set_label_size(20);
+                    update.set_color(Color::BackGround);
+                    update.set_selection_color(Color::BackGround);
+                    update.set_label_color(*systemGrayColor);
+                    update.set_frame(FrameType::OFlatFrame);
+                    update.emit(sender.clone(), Msg::UpdateSsh);
+                filters.set_size(&profile, 70);
+                filters.set_size(&platform, 70);
+                filters.set_size(&update, 20);
+            filters.end();
 
-        let mut browser = browser::HoldBrowser::default();
-        browser.style();
-        browser.set_column_widths(&[300, 80]);
-        browser.set_column_char('\t');
-        browser.handle({
-            let s = sender.clone();
-            move |_, event| match event {
-                Event::Released if app::event_clicks() => {
-                    s.send(Msg::Exec(Cmd::Ssh));
-                    true
-                }
-                _ => {
-                    s.send(Msg::HostChanged);
-                    false
-                }
-            }
-        });
+            let mut browser = browser::HoldBrowser::default();
+                browser.style();
+                browser.set_column_widths(&[300, 80]);
+                browser.set_column_char('\t');
+                browser.handle({
+                    let s = sender.clone();
+                    move |_, event| match event {
+                        Event::Released if app::event_clicks() => {
+                            s.send(Msg::Exec(Cmd::Ssh));
+                            true
+                        }
+                        _ => {
+                            s.send(Msg::HostChanged);
+                            false
+                        }
+                    }
+                });
 
-        let mut buttons = group::Flex::default().row();
-        main.set_size(&buttons, 30);
-        let mut ssh = button("ssh");
-        ssh.emit(sender.clone(), Msg::Exec(Cmd::Ssh));
-        let mut commands = menu_button(&Cmd::iter().map(|x| x.as_ref().to_lowercase()).join("|"));
-        commands.set_callback({
-            let s = sender.clone();
-            move |x| s.send(Msg::Exec(Cmd::from_repr(x.value() as usize).unwrap()))
-        });
-        buttons.set_size(&commands, 30);
-        buttons.end();
+            let mut buttons = group::Flex::default().row();
+                main.set_size(&buttons, 30);
+                let mut ssh = button("ssh");
+                ssh.emit(sender.clone(), Msg::Exec(Cmd::Ssh));
+                let mut commands = menu_button(&Cmd::iter().map(|x| x.as_ref().to_lowercase()).join("|"));
+                commands.set_callback({
+                    let s = sender.clone();
+                    move |x| s.send(Msg::Exec(Cmd::from_repr(x.value() as usize).unwrap()))
+                });
+                buttons.set_size(&commands, 30);
+            buttons.end();
 
         main.end();
         win.end();
         win.show();
 
         let hosts = parse_ssh_config_from_host().unwrap_or_default();
-        App {
-            cfg,
-            app,
-            browser,
-            ssh,
-            commands,
-            filter,
-            profile,
-            platform,
-            state: ExecOpt { hosts, ..ExecOpt::default() },
-            sender,
-            receiver,
-        }
+        let state = ExecOpt { hosts, ..ExecOpt::default() };
+        App { cfg, app, browser, ssh, commands, filter, profile, platform, state, sender, receiver, }
     }
 
     fn run(mut self) -> Result<()> {
@@ -203,7 +193,6 @@ impl App {
                 }
             }
         }
-
         Ok(())
     }
 

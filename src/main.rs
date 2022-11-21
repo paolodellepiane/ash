@@ -193,11 +193,11 @@ impl App {
         }
     }
 
-    fn run(self) -> Result<()> {
+    fn run(mut self) -> Result<()> {
         self.sender.send(Msg::Load);
         while self.app.wait() {
             if let Some(msg) = self.receiver.recv() {
-                match self.clone().update(msg) {
+                match self.update(msg) {
                     Ok(()) => {}
                     Err(err) => p!("{err:?}"),
                 }
@@ -207,7 +207,7 @@ impl App {
         Ok(())
     }
 
-    fn update(mut self, msg: Msg) -> Result<()> {
+    fn update(&mut self, msg: Msg) -> Result<()> {
         let matcher = SkimMatcherV2::default().ignore_case();
         match msg {
             Msg::Exec(cmd) if self.browser.selected_text().is_some() => {

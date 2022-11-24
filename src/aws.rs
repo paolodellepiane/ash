@@ -286,7 +286,8 @@ fn update_from_aws_api(
             let name = tag_name.find_tag("value")?.text()?;
             let name = name.to_string().replace(' ', "-");
             let platform = instance.find_tag("platformDetails")?.text()?.to_string();
-            let user = if platform == "Windows" { "administrator" } else { "ubuntu" }.to_string();
+            let platform = if platform == "Windows" { "win" } else { "lnx" }.to_string();
+            let user = if platform == "win" { "administrator" } else { "ubuntu" }.to_string();
             let profile = cred.profile.clone();
             Some(Instance {
                 name,
@@ -311,6 +312,7 @@ pub fn update_sshconfig(
     template: impl AsRef<Path>,
     proxy_jump: &str,
 ) -> Result<()> {
+    stopwatch!();
     let keys_path = keys_path.as_ref();
     let mut srvs: Vec<Instance> = Vec::new();
     let credentials = &get_credentials().context("No credentials found")?;

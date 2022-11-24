@@ -4,7 +4,7 @@ pub use std::println as p;
 use std::time::Instant;
 
 #[allow(dead_code)]
-pub fn stopwatch(name: &str) -> StopwatchGuard {
+pub fn stopwatch_guard(name: &str) -> StopwatchGuard {
     let start = Instant::now();
     StopwatchGuard { name: name.to_string(), start }
 }
@@ -18,4 +18,25 @@ impl Drop for StopwatchGuard {
     fn drop(&mut self) {
         p!("{} took {}ms", self.name, self.start.elapsed().as_millis())
     }
+}
+
+macro_rules! stopwatch {
+    () => {
+        let ___stopwatch_guard = stopwatch_guard(&f!("fn at {}:{}", file!(), line!()));
+    };
+    ($e:expr) => {
+        let ___stopwatch_guard = stopwatch_guard($e);
+    };
+}
+
+pub(crate) use stopwatch;
+
+#[allow(dead_code)]
+pub fn fst<F, S>(x: (F, S)) -> F {
+    x.0
+}
+
+#[allow(dead_code)]
+pub fn snd<F, S>(x: (F, S)) -> S {
+    x.1
 }

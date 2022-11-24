@@ -1,6 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![warn(clippy::all)]
+use aws::update_sshconfig;
 use config::Config;
+use eframe::epaint::ahash::HashMap;
 use egui::{color::*, *};
 use executable::*;
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
@@ -69,17 +71,23 @@ impl MyApp {
     }
 }
 
-impl Default for MyApp {
-    fn default() -> Self {
-        let hosts = parse_ssh_config_from_host().unwrap_or_default();
+impl MyApp {
+    fn new() -> Result<Self> {
+        let hosts = match parse_ssh_config_from_host() {
+            Ok(hosts) => hosts,
+            Err(err) => {
+                p!("{err:?}");
+                Default::default()
+            }
+        };
         let state = ExecOpt { hosts, ..ExecOpt::default() };
-        Self {
+        Ok(Self {
             cfg: Config::load().expect("can't load config"),
             state,
             filter: Default::default(),
             platform: "all".into(),
             profile: "all".into(),
-        }
+        })
     }
 }
 
@@ -98,6 +106,18 @@ impl eframe::App for MyApp {
                         ui.selectable_value(&mut self.platform, p.clone(), p);
                     }
                 });
+                if ui.button("r").clicked() {
+                    match update_sshconfig(
+                        &self.cfg.keys_path,
+                        &Config::template_path(),
+                        &self.cfg.bastion_name,
+                    ) {
+                        Ok(()) => {
+                            self.state.hosts = parse_ssh_config_from_host().unwrap_or_default()
+                        }
+                        Err(err) => p!("{err:?}"),
+                    }
+                }
             });
             ScrollArea::vertical().max_height(200.0).auto_shrink([false; 2]).show(ui, |ui| {
                 ui.vertical(|ui| {
@@ -329,11 +349,9 @@ impl eframe::App for MyApp {
 //     }
 // }
 
-fn main() {
+fn main() -> Result<()> {
     let options = eframe::NativeOptions::default();
-    eframe::run_native(
-        "My egui App",
-        options,
-        Box::new(|_cc| Box::new(MyApp::default())),
-    );
+    let state = MyApp::new()?;
+    eframe::run_native("My egui App", options, Box::new(|_cc| Box::new(state)));
+    Ok(())
 }

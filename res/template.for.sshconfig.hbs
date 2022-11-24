@@ -1,7 +1,6 @@
 {{#each this as |t| }}
 Host {{t.name}}
-# profile {{t.profile}}
-# platform {{t.platform}}
+# profile {{t.profile}},{{t.platform}}
     HostName {{t.address}}
     User {{t.user}}
     IdentityFile {{t.key}}

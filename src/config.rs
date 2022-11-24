@@ -139,7 +139,7 @@ impl Config {
             std::fs::remove_file(Self::cache_path()).context("can't clear cache")?;
         }
         if args.config {
-            Command::new("code").arg(Self::config_dir()).status()?;
+            Command::new("code.cmd").arg(Self::config_dir()).status()?;
             exit(0)
         }
         let config = File::open(&config_path).context(f!("can't find config: {config_path:?}"))?;

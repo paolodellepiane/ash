@@ -5,4 +5,4 @@ name = @{ (!" " ~ char)+ }
 section_name = @{ char+ }
 section = { "[" ~ section_name ~ "]" }
 property = { name ~ "=" ~ value }
-file = { SOI ~ ((section | property)? ~ NEWLINE)* ~ EOI }
+file = { SOI ~ ((section | property | NEWLINE)+ ~ NEWLINE?)* ~ EOI }

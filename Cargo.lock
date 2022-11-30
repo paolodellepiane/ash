@@ -22,7 +22,7 @@ dependencies = [
 
 [[package]]
 name = "ash"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "aws-sigv4",
  "chrono",

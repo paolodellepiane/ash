@@ -312,7 +312,7 @@ pub fn update_sshconfig(
     template: impl AsRef<Path>,
     proxy_jump: &str,
 ) -> Result<()> {
-    stopwatch!();
+    // stopwatch!();
     let keys_path = keys_path.as_ref();
     let mut srvs: Vec<Instance> = Vec::new();
     let credentials = &get_credentials().context("No credentials found")?;

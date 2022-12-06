@@ -20,6 +20,7 @@ impl Drop for StopwatchGuard {
     }
 }
 
+#[allow(unused_macros)]
 macro_rules! stopwatch {
     () => {
         let ___stopwatch_guard = stopwatch_guard(&f!("fn at {}:{}", file!(), line!()));
@@ -29,6 +30,7 @@ macro_rules! stopwatch {
     };
 }
 
+#[allow(unused_imports)]
 pub(crate) use stopwatch;
 
 #[allow(dead_code)]

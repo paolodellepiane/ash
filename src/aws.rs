@@ -284,7 +284,7 @@ fn update_from_aws_api(
             let tag_name =
                 tag_set_items.find_map(|x| (x.find_tag("key")?.text()? == "Name").then_some(x))?;
             let name = tag_name.find_tag("value")?.text()?;
-            let name = name.to_string().replace(' ', "-");
+            let name = name.to_string().replace([' ', '@'], "-");
             let platform = instance.find_tag("platformDetails")?.text()?.to_string();
             let platform = if platform == "Windows" { "win" } else { "lnx" }.to_string();
             let user = if platform == "win" { "administrator" } else { "ubuntu" }.to_string();

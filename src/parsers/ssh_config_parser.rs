@@ -21,7 +21,6 @@ pub struct SshConfigParser;
 
 // https://www.ssh.com/academy/ssh/config
 pub fn parse_ssh_config(content: &str) -> Result<HashMap<String, Host>> {
-    stopwatch!();
     let res = SshConfigParser::parse(Rule::file, content)?.next().unwrap();
     let mut hosts: HashMap<&str, HashMap<String, &str>> = HashMap::new();
     let mut current_host = "";

@@ -98,7 +98,8 @@ fn aws_send(url: &str, service_name: &str, cred: &Credential) -> Result<Response
     aws_sign(&mut req, service_name, cred)?;
     let (parts, _) = req.into_parts();
     let Parts { uri, headers, .. } = parts;
-    let mut req = minreq::Request::new(minreq::Method::Get, URL::from_str(&uri.to_string())?);
+    let mut req = minreq::Request::new(minreq::Method::Get, URL::from_str(&uri.to_string())?)
+        .with_timeout(10);
     for (k, v) in headers.iter() {
         req = req.with_header(k.as_str(), v.to_str()?);
     }
@@ -307,13 +308,10 @@ fn update_from_aws_api(
     Ok(instances)
 }
 
-pub fn update_sshconfig(
-    keys_path: impl AsRef<Path>,
-    template: impl AsRef<Path>,
-    proxy_jump: &str,
-) -> Result<()> {
-    stopwatch!();
-    let keys_path = keys_path.as_ref();
+pub fn update_sshconfig(cfg: &Config) -> Result<()> {
+    let template = Config::template_path();
+    let keys_path = &cfg.keys_path;
+    let proxy_jump = &cfg.bastion_name;
     let mut srvs: Vec<Instance> = Vec::new();
     let credentials = &get_credentials().context("No credentials found")?;
     ensure!(!credentials.is_empty(), "No credentials found");
@@ -334,8 +332,8 @@ pub fn update_sshconfig(
             }
         }
     });
-    let template_prefix = template.as_ref().to_string_lossy().as_ref().to_string() + ".prefix";
-    let template_suffix = template.as_ref().to_string_lossy().as_ref().to_string() + ".suffix";
+    let template_prefix = template.to_string_lossy().as_ref().to_string() + ".prefix";
+    let template_suffix = template.to_string_lossy().as_ref().to_string() + ".suffix";
     let (prefix, suffix) = (Path::new(&template_prefix), Path::new(&template_suffix));
     let mut tmpl = std::fs::read_to_string(template)?;
     if prefix.exists() {

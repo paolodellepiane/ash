@@ -132,7 +132,7 @@ impl Executable for Scp {
     fn exec(&self) -> Result<()> {
         let Self { from, to, .. } = self;
         p!("Copying from {from} to {to}...");
-        Command::new("scp").args(COMMON_SSH_ARGS).args([from, to]).status()?;
+        Command::new("scp").args(COMMON_SSH_ARGS).args(["-r", from, to]).status()?;
         Ok(())
     }
 }

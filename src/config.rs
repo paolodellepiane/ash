@@ -116,6 +116,10 @@ impl Config {
         Self::config_dir().join("cache")
     }
 
+    pub fn code_cmd() -> String {
+        if cfg!(windows) { "code.cmd" } else { "code" }.into()
+    }
+
     pub fn load() -> Result<(Config, AshArgs)> {
         let args = AshArgs::parse();
         let config_path = Self::config_path();
@@ -139,11 +143,7 @@ impl Config {
             std::fs::remove_file(Self::cache_path()).context("can't clear cache")?;
         }
         if args.config {
-            if cfg!(windows) {
-                Command::new("code.cmd").arg(Self::config_dir()).status()?;
-            } else {
-                Command::new("code").arg(Self::config_dir()).status()?;
-            }
+            Command::new(Self::code_cmd()).arg(Self::config_dir()).status()?;
             exit(0)
         }
         let config = File::open(&config_path).context(f!("can't find config: {config_path:?}"))?;

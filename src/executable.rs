@@ -199,3 +199,22 @@ impl Executable for Code {
         Ok(())
     }
 }
+
+pub struct Info {
+    host: Host,
+}
+
+impl Info {
+    pub fn new(hosts: &Hosts) -> Result<Self> {
+        let choice = select_profile_then_host(hosts)?;
+        Ok(Self { host: hosts.hosts[&choice].clone() })
+    }
+}
+
+impl Executable for Info {
+    fn exec(&self) -> Result<()> {
+        let host = serde_json::to_string_pretty(&self.host)?;
+        p!("{host}");
+        Ok(())
+    }
+}

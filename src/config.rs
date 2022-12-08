@@ -78,6 +78,9 @@ pub enum Commands {
     /// Connect vscode to remote host
     #[command()]
     Code,
+    /// Output selected host info
+    #[command()]
+    Info,
 }
 
 #[derive(Deserialize, Debug, Clone)]

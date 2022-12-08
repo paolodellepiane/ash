@@ -97,6 +97,7 @@ fn run() -> Result<()> {
         Some(Commands::Tunnel(tunnel)) => Tunnel::from_ports(*tunnel, hosts)?.exec(),
         Some(Commands::Exec { command }) => Exec::new(command, hosts)?.exec(),
         Some(Commands::Code) => Code::new(hosts)?.exec(),
+        Some(Commands::Info) => Info::new(hosts)?.exec(),
         None => Ssh::new(hosts)?.exec(),
     }
 }

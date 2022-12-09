@@ -89,7 +89,7 @@ pub struct ScpArgs {
     pub from: String,
     /// To    (use ':' to copy to remote, e.g. 'ash cp fake.toml <remote>:fake.toml')
     #[arg(long_help("use ':' to copy to remote, e.g.:\n'ash cp fake.toml <remote>:fake.toml .' : copy fake:toml from current dir to <remote>\n<remote> can be empty or partial, ash will ask to select it from a list"))]
-    pub to: String,
+    pub to: Option<String>,
 }
 
 #[derive(Clone)]
@@ -100,8 +100,11 @@ pub struct Scp {
 
 impl Scp {
     pub fn new(ScpArgs { from, to }: &ScpArgs, hosts: &Hosts) -> Result<Self> {
-        fn expand_remote(s: &str, hosts: &Hosts) -> Result<(String, Option<Host>)> {
+        fn expand_remote(s: &str, hosts: &Hosts, is_from: bool) -> Result<(String, Option<Host>)> {
             if let Some((start_value, path)) = s.rsplit_once(':') {
+                if is_from && path.is_empty() {
+                    bail!("FROM must contain a path to file or folder")
+                }
                 let hosts = &Hosts {
                     start_value: start_value.to_string(),
                     hosts: hosts.hosts.clone(),
@@ -115,14 +118,18 @@ impl Scp {
                 Ok((String::from(s), None))
             }
         }
+        let mut to = to.to_owned().unwrap_or_default();
+        if to.is_empty() {
+            to = if from.contains(':') { "." } else { ":" }.to_owned() // want to copy from remote to local else from local to remote
+        }
         if from.contains(':') && to.contains(':') {
             bail!("Both 'From' and 'To' contain ':'. Use ':' for remote host only")
         }
         if !from.contains(':') && !to.contains(':') {
             bail!("Either 'From' or 'To' must contain ':'. Use ':' for remote host only")
         }
-        let (from, from_host) = expand_remote(from, hosts)?;
-        let (to, to_host) = expand_remote(to, hosts)?;
+        let (from, from_host) = expand_remote(from, hosts, true)?;
+        let (to, to_host) = expand_remote(&to, hosts, false)?;
         from_host.or(to_host).context("No host found")?;
         Ok(Self { from, to })
     }

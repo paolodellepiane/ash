@@ -58,7 +58,7 @@ pub enum Service {
 #[derive(Subcommand)]
 pub enum Commands {
     /// Copy file/folder from remote
-    #[command(arg_required_else_help = true, after_help("Folder path not ending with '/' will copy the directory including contents, rather than only the contents of the directory"))]
+    #[command(arg_required_else_help = false, after_help("Folder path not ending with '/' will copy the directory including contents, rather than only the contents of the directory"))]
     Cp(ScpArgs),
     /// Create a tunnel for a predefined service
     #[command(arg_required_else_help = true)]

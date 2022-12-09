@@ -45,6 +45,9 @@ pub struct AshArgs {
     pub verbose: bool,
     #[command(subcommand)]
     pub command: Option<Commands>,
+    /// Check for ash update
+    #[arg(long, default_value_t = false)]
+    pub check_update: bool,
 }
 
 #[derive(ValueEnum, Clone, Debug)]

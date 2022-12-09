@@ -78,6 +78,14 @@ fn select_profile_then_host(Hosts { hosts, start_value, .. }: &Hosts) -> Result<
 
 fn run() -> Result<()> {
     let (config, args) = &*CFG;
+    if args.check_update {
+        if cfg!(windows) {
+            std::process::Command::new("scoop.cmd").args(["update", "ash"]).spawn()?;
+        } else {
+            p!("not implemented on this platform");
+        }
+        exit(0);
+    }
     if config.update {
         update_sshconfig(
             &config.keys_path,

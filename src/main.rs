@@ -80,7 +80,7 @@ fn run() -> Result<()> {
     let (config, args) = &*CFG;
     if args.check_update {
         if cfg!(windows) {
-            std::process::Command::new("scoop.cmd").args(["update", "ash"]).spawn()?;
+            std::process::Command::new("scoop.cmd").args(["update", "-k", "ash"]).spawn()?;
         } else {
             p!("not implemented on this platform");
         }

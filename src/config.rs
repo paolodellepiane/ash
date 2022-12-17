@@ -84,6 +84,9 @@ pub enum Commands {
     /// Output selected host info
     #[command()]
     Info,
+    /// Try to setup remote container for remote debug
+    #[command()]
+    Vsdbg,
 }
 
 #[derive(Deserialize, Debug, Clone)]

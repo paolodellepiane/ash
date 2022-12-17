@@ -11,6 +11,7 @@ use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use itertools::Itertools;
 use parsers::ssh_config_parser::parse_ssh_config_from_host;
 use prelude::*;
+use std::iter::once;
 use std::process::exit;
 
 mod aws;
@@ -58,13 +59,18 @@ fn select_profile_then_host(Hosts { hosts, start_value, .. }: &Hosts) -> Result<
         return select("", values, start_value);
     }
     let _select_profile_then_host = |(start_profile, start_host): (&str, &str)| {
-        let profiles = hosts.iter().map(|(_, h)| h.profile.clone()).unique().collect_vec();
+        let profiles = hosts.iter().map(|(_, h)| h.profile.clone()).unique();
+        let profiles = once("history".to_string()).chain(profiles).collect_vec();
         let profile = select("", profiles, start_profile)?;
         let values = hosts
             .iter()
             .filter_map(|(_, h)| (h.profile == profile).then_some(h.name.clone()))
             .collect_vec();
-        select(&f!("[{profile}]"), values, start_host)
+        if profile == "history" {
+            select(&f!("[{profile}]"), values, start_host)
+        } else {
+            select(&f!("[{profile}]"), values, start_host)
+        }
     };
     match start_value {
         sv if sv.contains(':') => _select_profile_then_host(sv.split_once(':').unwrap()),
@@ -106,6 +112,7 @@ fn run() -> Result<()> {
         Some(Commands::Exec { command }) => Exec::new(command, hosts)?.exec(),
         Some(Commands::Code) => Code::new(hosts)?.exec(),
         Some(Commands::Info) => Info::new(hosts)?.exec(),
+        Some(Commands::Vsdbg) => Vsdbg::new(hosts)?.exec(),
         None => Ssh::new(hosts)?.exec(),
     }
 }

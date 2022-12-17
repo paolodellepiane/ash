@@ -20,7 +20,8 @@
                 }
             },
             "args": [
-                "cp",
+                "bastion",
+                "vsdbg"
             ],
             "cwd": "${workspaceFolder}"
         },

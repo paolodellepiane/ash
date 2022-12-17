@@ -3,9 +3,10 @@ use crate::config::Service;
 use crate::config::COMMON_SSH_ARGS;
 use crate::parsers::ssh_config_parser::Host;
 use crate::prelude::*;
-use crate::select_profile_then_host;
+use crate::{select, select_profile_then_host};
 use clap::arg;
 use clap::Args;
+use itertools::Itertools;
 use std::collections::HashMap;
 use std::process::Command;
 
@@ -219,6 +220,45 @@ impl Info {
 }
 
 impl Executable for Info {
+    fn exec(&self) -> Result<()> {
+        let host = serde_json::to_string_pretty(&self.host)?;
+        p!("{host}");
+        Ok(())
+    }
+}
+
+pub struct Vsdbg {
+    host: Host,
+}
+
+impl Vsdbg {
+    pub fn new(hosts: &Hosts) -> Result<Self> {
+        let choice = select_profile_then_host(hosts)?;
+        let name = &hosts.hosts[&choice].name;
+        let res = Command::new("ssh")
+            .args(COMMON_SSH_ARGS)
+            .args([
+                name,
+                r#"sudo docker ps --format "{{.ID}},{{.Names}},{{.Image}}""#,
+            ])
+            .output()?
+            .stdout;
+        let res = String::from_utf8_lossy(&res).into_owned();
+        let containers: HashMap<_, _> = res
+            .lines()
+            .map(|l| l.split(',').collect_vec())
+            .filter(|s| s.len() > 1)
+            .map(|s| (f!("{} - {} - {}", s[0], s[1], s[2]), s[0]))
+            .collect();
+        let container = select("", containers.clone().into_keys().collect_vec(), "")?;
+        // executeInteractive(`scp`, `-i`, s.Key, lookForPath(`res/vsdbg.sh`, vsdbgsh), s.Address+`:`)
+        // executeInteractive(`ssh`, `-i`, s.Key, s.Address, `sudo`, `bash`, `vsdbg.sh`, containers[i][0], *vsdbgPortFlag)
+        p!("selected {}", containers[&container]);
+        Ok(Self { host: hosts.hosts[&choice].clone() })
+    }
+}
+
+impl Executable for Vsdbg {
     fn exec(&self) -> Result<()> {
         let host = serde_json::to_string_pretty(&self.host)?;
         p!("{host}");

@@ -22,6 +22,8 @@ pub const COMMON_SSH_ARGS: &[&str] = &[
     "-o",
     "UserKnownHostsFile=/dev/null",
 ];
+pub const VSDBGSH: &str = include_str!("../res/vsdbg.sh");
+pub const VSDBGSH_FILE_NAME: &str = "vsdbg.sh";
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -121,6 +123,10 @@ impl Config {
         Self::config_dir().join(TEMPLATE_FILE_NAME)
     }
 
+    pub fn vsdbgsh_path() -> PathBuf {
+        Self::config_dir().join(VSDBGSH_FILE_NAME)
+    }
+
     pub fn cache_path() -> PathBuf {
         Self::config_dir().join("cache")
     }
@@ -133,10 +139,12 @@ impl Config {
         let args = AshArgs::parse();
         let config_path = Self::config_path();
         let template_path = Self::template_path();
+        let vsdbg_path = Self::vsdbgsh_path();
         if args.reset {
             if config_path.exists() {
                 std::fs::remove_file(template_path).context("can't reset template")?;
                 std::fs::remove_file(config_path).context("can't reset config")?;
+                std::fs::remove_file(vsdbg_path).context("can't reset vsdbg.sh")?;
                 std::fs::remove_file(Self::cache_path()).context("can't reset cache")?;
             }
             exit(0)
@@ -145,8 +153,11 @@ impl Config {
         if !config_path.exists() {
             std::fs::write(&config_path, DEFAULT_CONFIG)?;
         }
-        if !Self::template_path().exists() {
-            std::fs::write(&Self::template_path(), DEFAULT_TEMPLATE)?;
+        if !template_path.exists() {
+            std::fs::write(&template_path, DEFAULT_TEMPLATE)?;
+        }
+        if !vsdbg_path.exists() {
+            std::fs::write(&vsdbg_path, VSDBGSH)?;
         }
         if args.clear_cache {
             std::fs::remove_file(Self::cache_path()).context("can't clear cache")?;

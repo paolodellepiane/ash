@@ -251,8 +251,17 @@ impl Vsdbg {
             .map(|s| (f!("{} - {} - {}", s[0], s[1], s[2]), s[0]))
             .collect();
         let container = select("", containers.clone().into_keys().collect_vec(), "")?;
-        // executeInteractive(`scp`, `-i`, s.Key, lookForPath(`res/vsdbg.sh`, vsdbgsh), s.Address+`:`)
-        // executeInteractive(`ssh`, `-i`, s.Key, s.Address, `sudo`, `bash`, `vsdbg.sh`, containers[i][0], *vsdbgPortFlag)
+        Command::new("scp")
+            .args(COMMON_SSH_ARGS)
+            .args([
+                Config::vsdbgsh_path().to_string_lossy().into_owned(),
+                f!("{name}:"),
+            ])
+            .status()?;
+        Command::new("ssh")
+            .args(COMMON_SSH_ARGS)
+            .args([name, &f!("sudo bash vsdbg.sh {container} 4444")])
+            .status()?;
         p!("selected {}", containers[&container]);
         Ok(Self { host: hosts.hosts[&choice].clone() })
     }

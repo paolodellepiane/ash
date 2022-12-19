@@ -3,7 +3,8 @@ use crate::config::Service;
 use crate::config::COMMON_SSH_ARGS;
 use crate::parsers::ssh_config_parser::Host;
 use crate::prelude::*;
-use crate::{select, select_profile_then_host};
+use crate::select_idx;
+use crate::select_profile_then_host;
 use clap::arg;
 use clap::Args;
 use itertools::Itertools;
@@ -234,35 +235,28 @@ pub struct Vsdbg {
 impl Vsdbg {
     pub fn new(hosts: &Hosts) -> Result<Self> {
         let choice = select_profile_then_host(hosts)?;
-        let name = &hosts.hosts[&choice].name;
-        let res = Command::new("ssh")
-            .args(COMMON_SSH_ARGS)
-            .args([
-                name,
-                r#"sudo docker ps --format "{{.ID}},{{.Names}},{{.Image}}""#,
-            ])
-            .output()?
-            .stdout;
-        let res = String::from_utf8_lossy(&res).into_owned();
-        let containers: HashMap<_, _> = res
+        let host_name = &hosts.hosts[&choice].name;
+        let res = ssh_execute(
+            host_name,
+            r#"sudo docker ps --format "{{.ID}},{{.Names}},{{.Image}}""#,
+        )?;
+        let containers = res
             .lines()
             .map(|l| l.split(',').collect_vec())
-            .filter(|s| s.len() > 1)
-            .map(|s| (f!("{} - {} - {}", s[0], s[1], s[2]), s[0]))
-            .collect();
-        let container = select("", containers.clone().into_keys().collect_vec(), "")?;
-        Command::new("scp")
-            .args(COMMON_SSH_ARGS)
-            .args([
-                Config::vsdbgsh_path().to_string_lossy().into_owned(),
-                f!("{name}:"),
-            ])
-            .status()?;
-        Command::new("ssh")
-            .args(COMMON_SSH_ARGS)
-            .args([name, &f!("sudo bash vsdbg.sh {container} 4444")])
-            .status()?;
-        p!("selected {}", containers[&container]);
+            .filter(|s| s.len() == 2)
+            .map(|s| [s[0], s[1], s[2]])
+            .collect_vec();
+        let idx = select_idx(
+            "",
+            &containers.iter().map(|s| s.join(" - ")).collect_vec(),
+            "",
+        )?;
+        let container = containers[idx][0];
+        scp_execute(
+            &Config::vsdbgsh_path().to_string_lossy(),
+            &f!("{host_name}:"),
+        )?;
+        ssh_execute(host_name, &f!("sudo bash vsdbg.sh {container} 4444"))?;
         Ok(Self { host: hosts.hosts[&choice].clone() })
     }
 }
@@ -273,4 +267,22 @@ impl Executable for Vsdbg {
         p!("{host}");
         Ok(())
     }
+}
+
+fn ssh_execute(host_name: &str, cmd: &str) -> Result<String> {
+    Command::new("ssh")
+        .args(COMMON_SSH_ARGS)
+        .args([host_name, cmd])
+        .output()
+        .map(|x| String::from_utf8_lossy(&x.stdout).into_owned())
+        .map_err(|x| x.into())
+}
+
+fn scp_execute(from: &str, to: &str) -> Result<String> {
+    Command::new("scp")
+        .args(COMMON_SSH_ARGS)
+        .args([from, to])
+        .output()
+        .map(|x| String::from_utf8_lossy(&x.stdout).into_owned())
+        .map_err(|x| x.into())
 }

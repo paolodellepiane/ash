@@ -123,6 +123,7 @@ fn run() -> Result<()> {
             Vsdbg => Commands::vsdbg(hosts),
             EventLog => Commands::win_event_log(hosts),
             ContainerEventLog => Commands::win_container_event_log(hosts),
+            Get => Commands::get_file(hosts),
         },
         None => Commands::ssh(hosts),
     }

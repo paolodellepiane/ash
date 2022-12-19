@@ -4,6 +4,7 @@ use crate::config::COMMON_SSH_ARGS;
 use crate::parsers::ssh_config_parser::Host;
 use crate::parsers::ssh_config_parser::Platform;
 use crate::prelude::*;
+use crate::select;
 use crate::select_idx;
 use crate::select_profile_then_host;
 use clap::arg;
@@ -12,8 +13,11 @@ use clap::Args;
 use clap::Subcommand;
 use itertools::Itertools;
 use std::collections::HashMap;
+use std::fs::DirEntry;
 use std::io::BufRead;
 use std::io::BufReader;
+use std::path::Path;
+use std::path::PathBuf;
 use std::process::Command;
 use std::process::Stdio;
 
@@ -76,6 +80,9 @@ pub enum Commands {
     /// Get windows container event logs
     #[command()]
     ContainerEventLog,
+    /// Get file
+    #[command()]
+    Get,
 }
 
 impl Commands {
@@ -218,6 +225,15 @@ impl Commands {
         scp_execute(&f!("{host_name}:evtx.zip"), ".")?;
         Ok(())
     }
+
+    pub fn get_file(hosts: &Hosts) -> Result<()> {
+        let host_name = &select_profile_then_host(hosts)?;
+        let entries = read_remote_dir(&hosts.hosts[host_name], &"/")?;
+        let options = entries.into_iter().map(|x| x.file_name).collect_vec();
+        let file = select("", &options, "")?;
+        p!("selected file: {file}");
+        Ok(())
+    }
 }
 
 fn select_container(host: &Host) -> Result<String> {
@@ -241,8 +257,11 @@ fn select_container(host: &Host) -> Result<String> {
 }
 
 fn ssh_execute(host_name: &str, cmd: &str) -> Result<String> {
-    let output = Command::new("ssh").args(COMMON_SSH_ARGS).args([host_name, cmd]).output()?;
-    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+    let out = Command::new("ssh").args(COMMON_SSH_ARGS).args([host_name, cmd]).output()?;
+    if !out.status.success() {
+        bail!("{}", String::from_utf8_lossy(&out.stderr));
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).into_owned())
 }
 
 fn ssh_execute_redirect(host_name: &str, cmd: &str) -> Result<String> {
@@ -271,4 +290,92 @@ fn ssh_execute_redirect(host_name: &str, cmd: &str) -> Result<String> {
 fn scp_execute(from: &str, to: &str) -> Result<String> {
     let out = Command::new("scp").args(COMMON_SSH_ARGS).args([from, to]).output()?.stdout;
     Ok(String::from_utf8_lossy(&out).into_owned())
+}
+
+#[derive(Debug)]
+pub struct Entry {
+    pub path: PathBuf,
+    pub file_name: String,
+    pub is_dir: bool,
+    pub is_selected: bool,
+}
+
+impl From<DirEntry> for Entry {
+    fn from(e: DirEntry) -> Self {
+        Self {
+            path: e.path(),
+            file_name: e.file_name().to_string_lossy().to_string(),
+            is_dir: e.path().is_dir(),
+            is_selected: false,
+        }
+    }
+}
+
+fn parse_ls_output(ls_output: &str, base_path: &impl AsRef<Path>) -> Result<Vec<Entry>> {
+    let res = ls_output
+        .lines()
+        .map(|x| Entry {
+            file_name: x.into(),
+            path: base_path.as_ref().join(x),
+            is_dir: x.ends_with('/'),
+            is_selected: false,
+        })
+        .sorted_by_key(|x| if x.is_dir { "a" } else { "b" })
+        .collect_vec();
+    Ok(res)
+}
+
+fn read_remote_dir(host: &Host, path: &impl AsRef<Path>) -> Result<Vec<Entry>> {
+    let out = ssh_execute(
+        &host.name,
+        &f!(
+            "ls --group-directories-first -pa1 '{}'",
+            path.as_ref().to_string_lossy()
+        ),
+    )?;
+    let files = parse_ls_output(&out, path)?;
+    Ok(files)
+}
+
+pub fn read_local_dir(path: impl AsRef<Path>) -> Result<Vec<Entry>> {
+    let files = std::fs::read_dir(path)?
+        .filter_map(Result::ok)
+        .map(Entry::from)
+        .sorted_by_key(|x| {
+            let p = if x.is_dir { "a" } else { "b" };
+            f!("{}{}", p, x.file_name)
+        })
+        .collect_vec();
+    Ok(files)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_ls_output_succeeds() {
+        const LS: &str = r#"
+./
+../
+.DS_Store
+.git/
+.gitignore
+.vscode/
+Cargo.lock
+Cargo.toml
+ash
+ash.config.json
+clippy.sh
+res/
+rustfmt.toml
+src/
+target/
+test.txt
+"#;
+
+        let res = parse_ls_output(LS, &"/test/");
+        assert!(res.is_ok());
+        println!("{:#?}", res.unwrap());
+    }
 }

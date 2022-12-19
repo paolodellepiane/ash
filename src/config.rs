@@ -1,8 +1,5 @@
-use crate::{
-    executable::{ScpArgs, TunnelArgs},
-    prelude::*,
-};
-use clap::{Parser, Subcommand, ValueEnum};
+use crate::{commands::Commands, prelude::*};
+use clap::{Parser, ValueEnum};
 use directories::UserDirs;
 use once_cell::sync::Lazy;
 use serde::Deserialize;
@@ -58,37 +55,6 @@ pub enum Service {
     Redis,
     Rds,
     RabbitMq,
-}
-
-#[derive(Subcommand)]
-pub enum Commands {
-    /// Copy file/folder from remote
-    #[command(arg_required_else_help = false, after_help("Folder path not ending with '/' will copy the directory including contents, rather than only the contents of the directory"))]
-    Cp(ScpArgs),
-    /// Create a tunnel for a predefined service
-    #[command(arg_required_else_help = true)]
-    Service {
-        /// Common Services
-        service: Service,
-    },
-    /// Create a tunnel for custom ports
-    #[command(arg_required_else_help = true)]
-    Tunnel(TunnelArgs),
-    /// Execute a command remotely
-    #[command(arg_required_else_help = true)]
-    Exec {
-        /// Command to execute
-        command: String,
-    },
-    /// Connect vscode to remote host
-    #[command()]
-    Code,
-    /// Output selected host info
-    #[command()]
-    Info,
-    /// Try to setup remote container for remote debug
-    #[command()]
-    Vsdbg,
 }
 
 #[derive(Deserialize, Debug, Clone)]

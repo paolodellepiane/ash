@@ -1,12 +1,12 @@
 #![warn(clippy::all)]
 use aws::update_sshconfig;
-use config::{Commands, Config, CFG};
+use commands::*;
+use config::{Config, CFG};
 use dialoguer::{
     console::{Color, Style},
     theme::ColorfulTheme,
     FuzzySelect,
 };
-use executable::*;
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use itertools::Itertools;
 use parsers::ssh_config_parser::parse_ssh_config_from_host;
@@ -15,9 +15,9 @@ use std::iter::once;
 use std::process::exit;
 
 mod aws;
+mod commands;
 mod config;
 mod describe_instances;
-mod executable;
 mod parsers;
 mod prelude;
 
@@ -48,7 +48,7 @@ fn select_idx(message: &str, options: &Vec<String>, start_value: &str) -> Result
         .with_prompt(message)
         .with_initial_text(start_value)
         .default(0)
-        .items(&options)
+        .items(options)
         .interact_opt()?
         .unwrap_or_else(|| exit(0));
     Ok(selection)
@@ -111,15 +111,16 @@ fn run() -> Result<()> {
         start_value: args.host.clone().unwrap_or_default(),
         bastion: config.bastion_name.clone(),
     };
+    use Commands::*;
     match &args.command {
-        Some(Commands::Cp(cp)) => Scp::new(cp, hosts)?.exec(),
-        Some(Commands::Service { service }) => Tunnel::from_service(service, hosts)?.exec(),
-        Some(Commands::Tunnel(tunnel)) => Tunnel::from_ports(*tunnel, hosts)?.exec(),
-        Some(Commands::Exec { command }) => Exec::new(command, hosts)?.exec(),
-        Some(Commands::Code) => Code::new(hosts)?.exec(),
-        Some(Commands::Info) => Info::new(hosts)?.exec(),
-        Some(Commands::Vsdbg) => Vsdbg::new(hosts)?.exec(),
-        None => Ssh::new(hosts)?.exec(),
+        Some(Cp(cp)) => Commands::cp(cp, hosts),
+        Some(Service { service }) => Commands::tunnel_from_service(service, hosts),
+        Some(Tunnel(tunnel)) => Commands::tunnel_from_ports(*tunnel, hosts),
+        Some(Exec { command }) => Commands::exec(command, hosts),
+        Some(Code) => Commands::code(hosts),
+        Some(Info) => Commands::info(hosts),
+        Some(Vsdbg) => Commands::vsdbg(hosts),
+        None => Commands::ssh(hosts),
     }
 }
 

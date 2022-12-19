@@ -182,7 +182,7 @@ fn get_shared_credentials() -> Result<Vec<Credential>> {
     };
 
     // todo: expand source profiles
-    let mut creds: HashMap<_, _> = parse_ini_from_file(&aws_credentials)
+    let mut creds: HashMap<_, _> = parse_ini_from_file(aws_credentials)
         .context("Can't load aws credentials")?
         .into_iter()
         .filter(|(sec, _)| !sec.is_empty())

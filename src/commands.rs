@@ -2,6 +2,7 @@ use crate::config::Config;
 use crate::config::Service;
 use crate::config::COMMON_SSH_ARGS;
 use crate::parsers::ssh_config_parser::Host;
+use crate::parsers::ssh_config_parser::Platform;
 use crate::prelude::*;
 use crate::select_idx;
 use crate::select_profile_then_host;
@@ -11,7 +12,10 @@ use clap::Args;
 use clap::Subcommand;
 use itertools::Itertools;
 use std::collections::HashMap;
+use std::io::BufRead;
+use std::io::BufReader;
 use std::process::Command;
+use std::process::Stdio;
 
 pub struct Hosts {
     pub hosts: HashMap<String, Host>,
@@ -66,6 +70,12 @@ pub enum Commands {
     /// Try to setup remote container for remote debug
     #[command()]
     Vsdbg,
+    /// Get windows event logs
+    #[command()]
+    EventLog,
+    /// Get windows container event logs
+    #[command()]
+    ContainerEventLog,
 }
 
 impl Commands {
@@ -170,48 +180,95 @@ impl Commands {
 
     pub fn vsdbg(hosts: &Hosts) -> Result<()> {
         let host_name = &select_profile_then_host(hosts)?;
-        let res = ssh_execute(
-            host_name,
-            r#"sudo docker ps --format "{{.ID}},{{.Names}},{{.Image}}""#,
-        )?;
-        let containers = res
-            .lines()
-            .map(|l| l.split(',').collect_vec())
-            .filter(|s| s.len() == 3)
-            .map(|s| [s[0], s[1], s[2]])
-            .collect_vec();
-        let idx = select_idx(
-            "",
-            &containers.iter().map(|s| s.join(" - ")).collect_vec(),
-            "",
-        )?;
-        let container = containers[idx][0];
+        let container = select_container(&hosts.hosts[host_name])?;
         scp_execute(
             &Config::vsdbgsh_path().to_string_lossy(),
             &f!("{host_name}:"),
         )?;
-        p!(
-            "{}",
-            ssh_execute(host_name, &f!("sudo bash vsdbg.sh {container} 4444"))?
-        );
+        ssh_execute_redirect(host_name, &f!("sudo bash vsdbg.sh {container} 4444"))?;
+        Ok(())
+    }
+
+    pub fn win_event_log(hosts: &Hosts) -> Result<()> {
+        let host_name = &select_profile_then_host(hosts)?;
+        if hosts.hosts[host_name].platform != Platform::Win {
+            bail!("This command works for Windows only");
+        }
+        ssh_execute_redirect(
+            host_name,
+            r#"cmd /C "del /Q *.evtx & wevtutil epl System sys.evtx & wevtutil epl Application app.evtx & tar -acf evtx.zip *.evtx""#,
+        )?;
+        scp_execute(&f!("{host_name}:evtx.zip"), ".")?;
+        Ok(())
+    }
+
+    pub fn win_container_event_log(hosts: &Hosts) -> Result<()> {
+        let host_name = &select_profile_then_host(hosts)?;
+        if hosts.hosts[host_name].platform != Platform::Win {
+            bail!("This command works on Windows only");
+        }
+        let container = select_container(&hosts.hosts[host_name])?;
+        ssh_execute_redirect(
+            host_name,
+            &f!(
+                r#"docker exec {container} cmd /C "del /Q \*.evtx & wevtutil epl System \sys.evtx & wevtutil epl Application \app.evtx & tar -acf \evtx.zip \*.evtx""#
+            ),
+        )?;
+        ssh_execute_redirect(host_name, &f!(r#"docker cp {container}:\evtx.zip .""#))?;
+        scp_execute(&f!("{host_name}:evtx.zip"), ".")?;
         Ok(())
     }
 }
 
+fn select_container(host: &Host) -> Result<String> {
+    let sudo = if host.platform == Platform::Lnx { "sudo " } else { "" };
+    let res = ssh_execute(
+        &host.name,
+        &f!(r#"{sudo}docker ps --format "{{{{.ID}}}},{{{{.Names}}}},{{{{.Image}}}}""#),
+    )?;
+    let containers = res
+        .lines()
+        .map(|l| l.split(',').collect_vec())
+        .filter(|s| s.len() == 3)
+        .map(|s| [s[0], s[1], s[2]])
+        .collect_vec();
+    let idx = select_idx(
+        "",
+        &containers.iter().map(|s| s.join(" - ")).collect_vec(),
+        "",
+    )?;
+    Ok(containers[idx][0].to_string())
+}
+
 fn ssh_execute(host_name: &str, cmd: &str) -> Result<String> {
-    Command::new("ssh")
+    let output = Command::new("ssh").args(COMMON_SSH_ARGS).args([host_name, cmd]).output()?;
+    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
+fn ssh_execute_redirect(host_name: &str, cmd: &str) -> Result<String> {
+    let mut output = Command::new("ssh")
         .args(COMMON_SSH_ARGS)
         .args([host_name, cmd])
-        .output()
-        .map(|x| String::from_utf8_lossy(&x.stdout).into_owned())
-        .map_err(|x| x.into())
+        .stdout(Stdio::piped())
+        .spawn()?;
+    let mut res = Vec::new();
+    for line in BufReader::new(output.stdout.take().unwrap()).lines().filter(Result::is_ok) {
+        let line = line.unwrap();
+        p!("{}", &line);
+        res.push(line);
+    }
+    if let Some(stdout) = output.stdout.take() {
+        let out = BufReader::new(stdout)
+            .lines()
+            .filter_map(|l| l.ok())
+            .inspect(|l| p!("{l}"))
+            .collect_vec();
+        return Ok(out.join("\n"));
+    }
+    Ok(String::from(""))
 }
 
 fn scp_execute(from: &str, to: &str) -> Result<String> {
-    Command::new("scp")
-        .args(COMMON_SSH_ARGS)
-        .args([from, to])
-        .output()
-        .map(|x| String::from_utf8_lossy(&x.stdout).into_owned())
-        .map_err(|x| x.into())
+    let out = Command::new("scp").args(COMMON_SSH_ARGS).args([from, to]).output()?.stdout;
+    Ok(String::from_utf8_lossy(&out).into_owned())
 }

@@ -113,13 +113,17 @@ fn run() -> Result<()> {
     };
     use Commands::*;
     match &args.command {
-        Some(Cp(cp)) => Commands::cp(cp, hosts),
-        Some(Service { service }) => Commands::tunnel_from_service(service, hosts),
-        Some(Tunnel(tunnel)) => Commands::tunnel_from_ports(*tunnel, hosts),
-        Some(Exec { command }) => Commands::exec(command, hosts),
-        Some(Code) => Commands::code(hosts),
-        Some(Info) => Commands::info(hosts),
-        Some(Vsdbg) => Commands::vsdbg(hosts),
+        Some(cmd) => match cmd {
+            Cp(cp) => Commands::cp(cp, hosts),
+            Service { service } => Commands::tunnel_from_service(service, hosts),
+            Tunnel(tunnel) => Commands::tunnel_from_ports(*tunnel, hosts),
+            Exec { command } => Commands::exec(command, hosts),
+            Code => Commands::code(hosts),
+            Info => Commands::info(hosts),
+            Vsdbg => Commands::vsdbg(hosts),
+            EventLog => Commands::win_event_log(hosts),
+            ContainerEventLog => Commands::win_container_event_log(hosts),
+        },
         None => Commands::ssh(hosts),
     }
 }

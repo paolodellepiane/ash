@@ -21,7 +21,7 @@
             },
             "args": [
                 "dev13lnx",
-                "vsdbg"
+                "container-event-log"
             ],
             "cwd": "${workspaceFolder}"
         },

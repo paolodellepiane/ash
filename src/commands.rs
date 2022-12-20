@@ -13,13 +13,20 @@ use clap::Args;
 use clap::Subcommand;
 use itertools::Itertools;
 use std::collections::HashMap;
+use std::fs::read;
 use std::fs::DirEntry;
 use std::io::BufRead;
 use std::io::BufReader;
+use std::io::BufWriter;
+use std::io::Read;
+use std::io::Stderr;
+use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
 use std::process::Stdio;
+use std::thread::spawn;
+use std::time::Duration;
 
 pub struct Hosts {
     pub hosts: HashMap<String, Host>,
@@ -211,18 +218,19 @@ impl Commands {
 
     pub fn win_container_event_log(hosts: &Hosts) -> Result<()> {
         let host_name = &select_profile_then_host(hosts)?;
-        if hosts.hosts[host_name].platform != Platform::Win {
-            bail!("This command works on Windows only");
-        }
-        let container = select_container(&hosts.hosts[host_name])?;
-        ssh_execute_redirect(
-            host_name,
-            &f!(
-                r#"docker exec {container} cmd /C "del /Q \*.evtx & wevtutil epl System \sys.evtx & wevtutil epl Application \app.evtx & tar -acf \evtx.zip \*.evtx""#
-            ),
-        )?;
-        ssh_execute_redirect(host_name, &f!(r#"docker cp {container}:\evtx.zip .""#))?;
-        scp_execute(&f!("{host_name}:evtx.zip"), ".")?;
+        ssh_execute_redirect2(host_name, "")?;
+        // if hosts.hosts[host_name].platform != Platform::Win {
+        //     bail!("This command works on Windows only");
+        // }
+        // let container = select_container(&hosts.hosts[host_name])?;
+        // ssh_execute_redirect(
+        //     host_name,
+        //     &f!(
+        //         r#"docker exec {container} cmd /C "del /Q \*.evtx & wevtutil epl System \sys.evtx & wevtutil epl Application \app.evtx & tar -acf \evtx.zip \*.evtx""#
+        //     ),
+        // )?;
+        // ssh_execute_redirect(host_name, &f!(r#"docker cp {container}:\evtx.zip .""#))?;
+        // scp_execute(&f!("{host_name}:evtx.zip"), ".")?;
         Ok(())
     }
 
@@ -270,12 +278,6 @@ fn ssh_execute_redirect(host_name: &str, cmd: &str) -> Result<String> {
         .args([host_name, cmd])
         .stdout(Stdio::piped())
         .spawn()?;
-    let mut res = Vec::new();
-    for line in BufReader::new(output.stdout.take().unwrap()).lines().filter(Result::is_ok) {
-        let line = line.unwrap();
-        p!("{}", &line);
-        res.push(line);
-    }
     if let Some(stdout) = output.stdout.take() {
         let out = BufReader::new(stdout)
             .lines()
@@ -347,6 +349,29 @@ pub fn read_local_dir(path: impl AsRef<Path>) -> Result<Vec<Entry>> {
         })
         .collect_vec();
     Ok(files)
+}
+
+fn ssh_execute_redirect2(host_name: &str, cmd: &str) -> Result<()> {
+    let mut output = Command::new("ssh")
+        .args(COMMON_SSH_ARGS)
+        .args(["-T", host_name])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()?;
+    let mut stdin = output.stdin.take().unwrap();
+    let stdout = output.stdout.take().unwrap();
+    let mut r = BufReader::new(stdout);
+    let lines = ["ls\n", "env\n", "exit\n"];
+    let mut buf = [0; 4096];
+    _ = r.read(&mut buf)?;
+    for s in lines {
+        writeln!(stdin, "{s}")?;
+        let mut buf = [0; 4096];
+        _ = r.read(&mut buf)?;
+        p!("{}\n", String::from_utf8_lossy(&buf));
+    }
+    Ok(())
 }
 
 #[cfg(test)]

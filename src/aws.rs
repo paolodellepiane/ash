@@ -183,7 +183,7 @@ fn get_shared_credentials() -> Result<Vec<Credential>> {
     };
 
     // todo: expand source profiles
-    let mut creds: HashMap<_, _> = parse_ini_from_file(&aws_credentials)
+    let mut creds: HashMap<_, _> = parse_ini_from_file(aws_credentials)
         .context("Can't load aws credentials")?
         .into_iter()
         .filter(|(sec, _)| !sec.is_empty())
@@ -285,7 +285,7 @@ fn update_from_aws_api(
             let tag_name =
                 tag_set_items.find_map(|x| (x.find_tag("key")?.text()? == "Name").then_some(x))?;
             let name = tag_name.find_tag("value")?.text()?;
-            let name = name.to_string().replace(' ', "-");
+            let name = name.to_string().replace([' ', '@'], "-");
             let platform = instance.find_tag("platformDetails")?.text()?.to_string();
             let platform = if platform == "Windows" { "win" } else { "lnx" }.to_string();
             let user = if platform == "win" { "administrator" } else { "ubuntu" }.to_string();
@@ -308,10 +308,20 @@ fn update_from_aws_api(
     Ok(instances)
 }
 
+<<<<<<< HEAD
 pub fn update_sshconfig(cfg: &Config) -> Result<()> {
     let template = Config::template_path();
     let keys_path = &cfg.keys_path;
     let proxy_jump = &cfg.bastion_name;
+=======
+pub fn update_sshconfig(
+    keys_path: impl AsRef<Path>,
+    template: impl AsRef<Path>,
+    proxy_jump: &str,
+) -> Result<()> {
+    // stopwatch!();
+    let keys_path = keys_path.as_ref();
+>>>>>>> fdae2ab (tmp)
     let mut srvs: Vec<Instance> = Vec::new();
     let credentials = &get_credentials().context("No credentials found")?;
     ensure!(!credentials.is_empty(), "No credentials found");

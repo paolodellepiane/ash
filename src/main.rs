@@ -1,10 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![warn(clippy::all)]
 use aws::update_sshconfig;
+use commands::*;
 use config::Config;
 use eframe::epaint::TextShape;
 use egui::{color::*, *};
-use executable::*;
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use itertools::Itertools;
 use parsers::ssh_config_parser::{parse_ssh_config_from_host, Host};
@@ -15,9 +15,9 @@ use strum::IntoEnumIterator;
 use strum_macros::{AsRefStr, EnumIter, EnumString};
 
 mod aws;
+mod commands;
 mod config;
 mod describe_instances;
-mod executable;
 mod parsers;
 mod prelude;
 

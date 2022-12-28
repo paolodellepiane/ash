@@ -4,12 +4,18 @@ use pest_derive::Parser;
 use serde::Serialize;
 use std::collections::HashMap;
 
+#[derive(Clone, Debug, Serialize, PartialEq)]
+pub enum Platform {
+    Win,
+    Lnx,
+}
+
 #[derive(Clone, Debug, Serialize)]
 pub struct Host {
     pub name: String,
     pub profile: String,
     pub address: String,
-    pub platform: String,
+    pub platform: Platform,
     pub user: Option<String>,
     pub key: Option<String>,
     pub bastion: Option<String>,
@@ -21,6 +27,10 @@ pub struct SshConfigParser;
 
 // https://www.ssh.com/academy/ssh/config
 pub fn parse_ssh_config(content: &str) -> Result<HashMap<String, Host>> {
+<<<<<<< HEAD
+=======
+    // stopwatch!();
+>>>>>>> fdae2ab (tmp)
     let res = SshConfigParser::parse(Rule::file, content)?.next().unwrap();
     let mut hosts: HashMap<&str, HashMap<String, &str>> = HashMap::new();
     let mut current_host = "";
@@ -58,6 +68,7 @@ pub fn parse_ssh_config(content: &str) -> Result<HashMap<String, Host>> {
             let name = name.to_string();
             let profile = o.get("profile").copied().unwrap_or("others").to_string();
             let platform = o.get("platform").copied().unwrap_or("others").to_string();
+            let platform = if platform == "win" { Platform::Win } else { Platform::Lnx };
             let address = o.get("hostname")?.to_string();
             let user = o.get("user").copied().map(String::from);
             let key = o.get("identityfile").copied().map(String::from);

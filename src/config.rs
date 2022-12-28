@@ -74,7 +74,7 @@ impl Config {
     }
 
     pub fn home_dir() -> PathBuf {
-        Sel1f::user_dirs().home_dir().to_owned()
+        Self::user_dirs().home_dir().to_owned()
     }
 
     pub fn config_dir() -> PathBuf {

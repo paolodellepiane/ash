@@ -20,6 +20,7 @@ mod config;
 mod describe_instances;
 mod parsers;
 mod prelude;
+mod ssh;
 
 fn select_idx(message: &str, options: &Vec<String>, start_value: &str) -> Result<usize> {
     let matcher = SkimMatcherV2::default().ignore_case();
@@ -124,6 +125,7 @@ fn run() -> Result<()> {
             EventLog => Commands::win_event_log(hosts),
             ContainerEventLog => Commands::win_container_event_log(hosts),
             Get => Commands::get_file(hosts),
+            Put => Commands::put_file(hosts),
         },
         None => Commands::ssh(hosts),
     }

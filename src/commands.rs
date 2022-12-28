@@ -7,6 +7,7 @@ use crate::prelude::*;
 use crate::select;
 use crate::select_idx;
 use crate::select_profile_then_host;
+use crate::ssh::Ssh;
 use clap::arg;
 use clap::command;
 use clap::Args;
@@ -15,6 +16,7 @@ use itertools::Itertools;
 use std::collections::HashMap;
 use std::fs::read;
 use std::fs::DirEntry;
+use std::hash::Hash;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::BufWriter;
@@ -90,6 +92,9 @@ pub enum Commands {
     /// Get file
     #[command()]
     Get,
+    /// Put file
+    #[command()]
+    Put,
 }
 
 impl Commands {
@@ -218,30 +223,94 @@ impl Commands {
 
     pub fn win_container_event_log(hosts: &Hosts) -> Result<()> {
         let host_name = &select_profile_then_host(hosts)?;
-        ssh_execute_redirect2(host_name, "")?;
-        // if hosts.hosts[host_name].platform != Platform::Win {
-        //     bail!("This command works on Windows only");
-        // }
-        // let container = select_container(&hosts.hosts[host_name])?;
-        // ssh_execute_redirect(
-        //     host_name,
-        //     &f!(
-        //         r#"docker exec {container} cmd /C "del /Q \*.evtx & wevtutil epl System \sys.evtx & wevtutil epl Application \app.evtx & tar -acf \evtx.zip \*.evtx""#
-        //     ),
-        // )?;
-        // ssh_execute_redirect(host_name, &f!(r#"docker cp {container}:\evtx.zip .""#))?;
-        // scp_execute(&f!("{host_name}:evtx.zip"), ".")?;
+        if hosts.hosts[host_name].platform != Platform::Win {
+            bail!("This command works on Windows only");
+        }
+        let container = select_container(&hosts.hosts[host_name])?;
+        ssh_execute_redirect(
+            host_name,
+            &f!(
+                r#"docker exec {container} cmd /C "del /Q \*.evtx & wevtutil epl System \sys.evtx & wevtutil epl Application \app.evtx & tar -acf \evtx.zip \*.evtx""#
+            ),
+        )?;
+        ssh_execute_redirect(host_name, &f!(r#"docker cp {container}:\evtx.zip .""#))?;
+        scp_execute(&f!("{host_name}:evtx.zip"), ".")?;
         Ok(())
     }
 
     pub fn get_file(hosts: &Hosts) -> Result<()> {
-        let host_name = &select_profile_then_host(hosts)?;
-        let entries = read_remote_dir(&hosts.hosts[host_name], &"/")?;
-        let options = entries.into_iter().map(|x| x.file_name).collect_vec();
-        let file = select("", &options, "")?;
-        p!("selected file: {file}");
+        let path = Self::browse_remote(hosts)?;
+        scp_execute(&path, ".")?;
         Ok(())
     }
+
+    pub fn put_file(hosts: &Hosts) -> Result<()> {
+        let path = Self::browse_local()?;
+        let host_name = &select_profile_then_host(hosts)?;
+        scp_execute(&path, &f!("{host_name}:"))?;
+        Ok(())
+    }
+
+    fn browse_local() -> Result<String> {
+        let mut base_dir = Config::home_dir();
+        loop {
+            let entries = read_dir(&base_dir)?;
+            let options =
+                entries.iter().map(|x| x.file_name.clone()).filter(|x| x != "./").collect_vec();
+            let file = select("", &options, "")?;
+            let entry = entries.iter().find(|x| x.file_name == file).unwrap().clone();
+            if entry.is_dir {
+                if entry.file_name == "../" {
+                    if let Some(parent) = Path::new(&base_dir).parent() {
+                        base_dir = parent.to_owned();
+                    }
+                } else {
+                    base_dir = base_dir.join(entry.file_name);
+                }
+            } else {
+                return Ok(base_dir.join(file).to_string_lossy().into_owned());
+            }
+        }
+    }
+
+    fn browse_remote(hosts: &Hosts) -> Result<String> {
+        let host_name = &select_profile_then_host(hosts)?;
+        let mut ssh = Ssh::new(host_name)?;
+        ssh.write("pwd")?;
+        let mut base_dir = ssh.read()?;
+        loop {
+            ssh.write(&f!("ls --group-directories-first -pa1 '{base_dir}'"))?;
+            let out = ssh.read()?;
+            let entries = parse_ls_output(&out, &"/")?;
+            let options =
+                entries.iter().map(|x| x.file_name.clone()).filter(|x| x != "./").collect_vec();
+            let file = select("", &options, "")?;
+            let entry = entries.iter().find(|x| x.file_name == file).unwrap().clone();
+            if entry.is_dir {
+                if entry.file_name == "../" {
+                    if let Some(parent) = Path::new(&base_dir).parent() {
+                        base_dir = parent.to_string_lossy().into_owned();
+                    }
+                } else {
+                    base_dir = f!("{base_dir}/{}", entry.file_name)
+                }
+            } else {
+                return Ok(f!("{host_name}:{base_dir}/{file}"));
+            }
+        }
+    }
+}
+
+pub fn read_dir(path: impl AsRef<Path>) -> Result<Vec<Entry>> {
+    let files = std::fs::read_dir(path)?
+        .filter_map(Result::ok)
+        .map(Entry::from)
+        .sorted_by_key(|x| {
+            let p = if x.is_dir { "a" } else { "b" };
+            f!("{p}{}", x.file_name)
+        })
+        .collect();
+    Ok(files)
 }
 
 fn select_container(host: &Host) -> Result<String> {
@@ -294,7 +363,7 @@ fn scp_execute(from: &str, to: &str) -> Result<String> {
     Ok(String::from_utf8_lossy(&out).into_owned())
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Entry {
     pub path: PathBuf,
     pub file_name: String,
@@ -323,7 +392,7 @@ fn parse_ls_output(ls_output: &str, base_path: &impl AsRef<Path>) -> Result<Vec<
             is_selected: false,
         })
         .sorted_by_key(|x| if x.is_dir { "a" } else { "b" })
-        .collect_vec();
+        .collect();
     Ok(res)
 }
 
@@ -349,29 +418,6 @@ pub fn read_local_dir(path: impl AsRef<Path>) -> Result<Vec<Entry>> {
         })
         .collect_vec();
     Ok(files)
-}
-
-fn ssh_execute_redirect2(host_name: &str, cmd: &str) -> Result<()> {
-    let mut output = Command::new("ssh")
-        .args(COMMON_SSH_ARGS)
-        .args(["-T", host_name])
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()?;
-    let mut stdin = output.stdin.take().unwrap();
-    let stdout = output.stdout.take().unwrap();
-    let mut r = BufReader::new(stdout);
-    let lines = ["ls\n", "env\n", "exit\n"];
-    let mut buf = [0; 4096];
-    _ = r.read(&mut buf)?;
-    for s in lines {
-        writeln!(stdin, "{s}")?;
-        let mut buf = [0; 4096];
-        _ = r.read(&mut buf)?;
-        p!("{}\n", String::from_utf8_lossy(&buf));
-    }
-    Ok(())
 }
 
 #[cfg(test)]

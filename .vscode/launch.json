@@ -21,7 +21,7 @@
             },
             "args": [
                 "dev13lnx",
-                "container-event-log"
+                "get"
             ],
             "cwd": "${workspaceFolder}"
         },

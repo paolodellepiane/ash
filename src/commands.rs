@@ -5,7 +5,6 @@ use crate::parsers::ssh_config_parser::Host;
 use crate::parsers::ssh_config_parser::Platform;
 use crate::prelude::*;
 use crate::select;
-use crate::select_idx;
 use crate::select_profile_then_host;
 use crate::ssh::Ssh;
 use clap::arg;
@@ -325,11 +324,12 @@ fn select_container(host: &Host) -> Result<String> {
         .filter(|s| s.len() == 3)
         .map(|s| [s[0], s[1], s[2]])
         .collect_vec();
-    let idx = select_idx(
-        "",
-        &containers.iter().map(|s| s.join(" - ")).collect_vec(),
-        "",
-    )?;
+    let idx = 0;
+    // select_idx(
+    //     "",
+    //     &containers.iter().map(|s| s.join(" - ")).collect_vec(),
+    //     "",
+    // )?;
     Ok(containers[idx][0].to_string())
 }
 

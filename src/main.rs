@@ -2,12 +2,8 @@
 use aws::update_sshconfig;
 use commands::*;
 use config::{Config, CFG};
-use dialoguer::{
-    console::{Color, Style},
-    theme::ColorfulTheme,
-    FuzzySelect,
-};
-use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
+use dioxus::prelude::*;
+use dioxus_elements::input_data::keyboard_types::Key;
 use itertools::Itertools;
 use parsers::ssh_config_parser::parse_ssh_config_from_host;
 use prelude::*;
@@ -22,42 +18,10 @@ mod parsers;
 mod prelude;
 mod ssh;
 
-fn select_idx(message: &str, options: &Vec<String>, start_value: &str) -> Result<usize> {
-    let matcher = SkimMatcherV2::default().ignore_case();
-    if options.is_empty() {
-        bail!("Host list is empty");
-    }
-    if !start_value.is_empty() {
-        let filtered = options
-            .iter()
-            .enumerate()
-            .filter_map(|(i, x)| matcher.fuzzy_match(x, start_value).map(|_| (i, x)))
-            .collect_vec();
-        if filtered.len() == 1 {
-            return Ok(filtered[0].0);
-        }
-        if filtered.is_empty() {
-            bail!("No host found");
-        }
-    }
-    let theme = ColorfulTheme {
-        active_item_style: Style::new().fg(Color::Green),
-        fuzzy_match_highlight_style: Style::new().fg(Color::Green),
-        ..ColorfulTheme::default()
-    };
-    let selection = FuzzySelect::with_theme(&theme)
-        .with_prompt(message)
-        .with_initial_text(start_value)
-        .default(0)
-        .items(options)
-        .interact_opt()?
-        .unwrap_or_else(|| exit(0));
-    Ok(selection)
-}
-
 fn select(message: &str, options: &Vec<String>, start_value: &str) -> Result<String> {
-    let idx = select_idx(message, options, start_value)?;
-    Ok(options.get(idx).unwrap().clone())
+    let message = message.to_owned();
+    let options = options.iter().map(|x| x.to_owned()).collect_vec();
+    launch(app, SelectProps { message, options }).ok_or_else(|| eyre!("no host selected"))
 }
 
 fn select_profile_then_host(Hosts { hosts, start_value, .. }: &Hosts) -> Result<String> {
@@ -133,4 +97,46 @@ fn run() -> Result<()> {
 
 fn main() -> Result<()> {
     run()
+}
+
+struct SelectProps {
+    message: String,
+    options: Vec<String>,
+}
+
+fn app(cx: Scope<WithResult<SelectProps, String>>) -> Element {
+    let selected = use_state(cx, || 2_usize);
+
+    cx.render(rsx! {
+        div {
+            width: "100%",
+            height: "100%",
+            flex_direction: "column",
+            border_width: "1px",
+            onkeydown: move |event| {
+                p!("{event:?}");
+                match event.key() {
+                    Key::ArrowDown => selected.set(1),
+                    Key::ArrowUp => selected.set(1),
+                    _ => {}
+                };
+            },
+
+            h1 { height: "2px", color: "green",
+                "{cx.props.props.message}"
+            }
+
+            ul { flex_direction: "column", padding_left: "3px",
+                cx.props.props.options.iter().enumerate().map(|(i, o)| {
+                    if i == *selected.get() {
+                        rsx!(
+                            "> {o}"
+                        )
+                    } else {
+                        rsx!("  {o}")
+                    }
+                })
+            }
+        }
+    })
 }

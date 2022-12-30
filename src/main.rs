@@ -11,8 +11,9 @@ use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use itertools::Itertools;
 use parsers::ssh_config_parser::parse_ssh_config_from_host;
 use prelude::*;
-use std::iter::once;
-use std::process::exit;
+use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, process::exit};
+use std::{fs::File, iter::once};
 
 mod aws;
 mod commands;
@@ -60,10 +61,52 @@ fn select(message: &str, options: &Vec<String>, start_value: &str) -> Result<Str
     Ok(options.get(idx).unwrap().clone())
 }
 
+#[derive(Serialize, Deserialize, Default)]
+struct History {
+    entries: Vec<String>,
+}
+
+impl History {
+    pub fn load() -> Self {
+        let path = Config::config_dir().join("history");
+        if !path.exists() {
+            History { ..Default::default() }.save();
+        }
+        let h = File::open(path).expect("can't load history");
+        serde_json::from_reader(h).expect("Error deserializing history")
+    }
+
+    pub fn update(entry: &str) {
+        let mut h = Self::load();
+        h.entries.retain(|x| x != entry);
+        h.entries.insert(0, entry.to_owned());
+        h.save();
+    }
+
+    pub fn intersect(hosts: &HashMap<String, parsers::ssh_config_parser::Host>) {
+        let mut h = Self::load();
+        let mut iter = hosts.keys();
+        h.entries.retain(|x| iter.any(|y| y == x));
+        h.save();
+    }
+
+    fn save(&self) {
+        std::fs::write(
+            Config::config_dir().join("history"),
+            serde_json::to_string(self).unwrap(),
+        )
+        .unwrap();
+    }
+}
+
 fn select_profile_then_host(Hosts { hosts, start_value, .. }: &Hosts) -> Result<String> {
     if CFG.0.merge_profiles {
         let values = hosts.iter().map(|(name, _)| name.clone()).collect_vec();
-        return select("", &values, start_value);
+        let selected = select("", &values, start_value);
+        if let Ok(s) = &selected {
+            History::update(s);
+        }
+        return selected;
     }
     let _select_profile_then_host = |(start_profile, start_host): (&str, &str)| {
         let profiles = hosts.iter().map(|(_, h)| h.profile.clone()).unique();
@@ -73,11 +116,15 @@ fn select_profile_then_host(Hosts { hosts, start_value, .. }: &Hosts) -> Result<
             .iter()
             .filter_map(|(_, h)| (h.profile == profile).then_some(h.name.clone()))
             .collect_vec();
-        if profile == "history" {
-            select(&f!("[{profile}]"), &values, start_host)
+        let selected = if profile == "history" {
+            select(&f!("[{profile}]"), &History::load().entries, start_host)
         } else {
             select(&f!("[{profile}]"), &values, start_host)
+        };
+        if let Ok(s) = &selected {
+            History::update(s);
         }
+        selected
     };
     match start_value {
         sv if sv.contains(':') => _select_profile_then_host(sv.split_once(':').unwrap()),
@@ -107,6 +154,7 @@ fn run() -> Result<()> {
         )?;
     }
     let hosts = parse_ssh_config_from_host()?;
+    History::intersect(&hosts);
     let hosts = &Hosts {
         hosts,
         start_value: args.host.clone().unwrap_or_default(),

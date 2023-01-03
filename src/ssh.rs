@@ -23,7 +23,6 @@ impl Ssh {
         let mut stdout = BufReader::new(stdout);
         let mut buf = [0; 4096];
         _ = stdout.read(&mut buf)?;
-        let out = String::from_utf8_lossy(&buf).into_owned();
         Ok(Self { stdin, stdout })
     }
 
@@ -44,7 +43,7 @@ impl Ssh {
 impl Drop for Ssh {
     fn drop(&mut self) {
         match self.write("exit") {
-            Ok(out) => println!("closed"),
+            Ok(_) => println!("closed"),
             Err(err) => println!("error closing ssh connection: {err:?}"),
         };
     }

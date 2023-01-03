@@ -4,9 +4,7 @@ use crate::config::COMMON_SSH_ARGS;
 use crate::parsers::ssh_config_parser::Host;
 use crate::parsers::ssh_config_parser::Platform;
 use crate::prelude::*;
-use crate::select;
-use crate::select_idx;
-use crate::select_profile_then_host;
+use crate::select::*;
 use crate::ssh::Ssh;
 use clap::arg;
 use clap::command;
@@ -14,21 +12,13 @@ use clap::Args;
 use clap::Subcommand;
 use itertools::Itertools;
 use std::collections::HashMap;
-use std::fs::read;
 use std::fs::DirEntry;
-use std::hash::Hash;
 use std::io::BufRead;
 use std::io::BufReader;
-use std::io::BufWriter;
-use std::io::Read;
-use std::io::Stderr;
-use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
 use std::process::Stdio;
-use std::thread::spawn;
-use std::time::Duration;
 
 pub struct Hosts {
     pub hosts: HashMap<String, Host>,
@@ -394,30 +384,6 @@ fn parse_ls_output(ls_output: &str, base_path: &impl AsRef<Path>) -> Result<Vec<
         .sorted_by_key(|x| if x.is_dir { "a" } else { "b" })
         .collect();
     Ok(res)
-}
-
-fn read_remote_dir(host: &Host, path: &impl AsRef<Path>) -> Result<Vec<Entry>> {
-    let out = ssh_execute(
-        &host.name,
-        &f!(
-            "ls --group-directories-first -pa1 '{}'",
-            path.as_ref().to_string_lossy()
-        ),
-    )?;
-    let files = parse_ls_output(&out, path)?;
-    Ok(files)
-}
-
-pub fn read_local_dir(path: impl AsRef<Path>) -> Result<Vec<Entry>> {
-    let files = std::fs::read_dir(path)?
-        .filter_map(Result::ok)
-        .map(Entry::from)
-        .sorted_by_key(|x| {
-            let p = if x.is_dir { "a" } else { "b" };
-            f!("{}{}", p, x.file_name)
-        })
-        .collect_vec();
-    Ok(files)
 }
 
 #[cfg(test)]

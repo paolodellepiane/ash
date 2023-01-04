@@ -221,10 +221,9 @@ impl Commands {
         ssh_execute_redirect(
             host_name,
             &f!(
-                r#"docker exec {container} cmd /C "del /Q \*.evtx & wevtutil epl System \sys.evtx & wevtutil epl Application \app.evtx & tar -acf \evtx.zip \*.evtx""#
+                r#"docker exec {container} cmd /C "del /Q \*.evtx & wevtutil epl System \sys.evtx & wevtutil epl Application \app.evtx & tar -acf \evtx.zip \*.evtx" && docker cp {container}:\evtx.zip ."#
             ),
         )?;
-        ssh_execute_redirect(host_name, &f!(r#"docker cp {container}:\evtx.zip .""#))?;
         scp_execute(&f!("{host_name}:evtx.zip"), ".")?;
         Ok(())
     }

@@ -43,7 +43,7 @@ impl Ssh {
 impl Drop for Ssh {
     fn drop(&mut self) {
         match self.write("exit") {
-            Ok(_) => println!("closed"),
+            Ok(_) => {}
             Err(err) => println!("error closing ssh connection: {err:?}"),
         };
     }

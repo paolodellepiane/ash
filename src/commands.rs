@@ -15,9 +15,11 @@ use std::collections::HashMap;
 use std::fs::DirEntry;
 use std::io::BufRead;
 use std::io::BufReader;
+use std::io::Read;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
+use std::process::ExitStatus;
 use std::process::Stdio;
 
 pub struct Hosts {
@@ -305,7 +307,7 @@ pub fn read_dir(path: impl AsRef<Path>) -> Result<Vec<Entry>> {
 
 fn select_container(host: &Host) -> Result<String> {
     let sudo = if host.platform == Platform::Lnx { "sudo " } else { "" };
-    let res = ssh_execute(
+    let res = ssh_execute_output(
         &host.name,
         &f!(r#"{sudo}docker ps --format "{{{{.ID}}}},{{{{.Names}}}},{{{{.Image}}}}""#),
     )?;
@@ -323,7 +325,7 @@ fn select_container(host: &Host) -> Result<String> {
     Ok(containers[idx][0].to_string())
 }
 
-fn ssh_execute(host_name: &str, cmd: &str) -> Result<String> {
+fn ssh_execute_output(host_name: &str, cmd: &str) -> Result<String> {
     let out = Command::new("ssh").args(COMMON_SSH_ARGS).args([host_name, cmd]).output()?;
     if !out.status.success() {
         bail!("{}", String::from_utf8_lossy(&out.stderr));
@@ -348,9 +350,8 @@ fn ssh_execute_redirect(host_name: &str, cmd: &str) -> Result<String> {
     Ok(String::from(""))
 }
 
-fn scp_execute(from: &str, to: &str) -> Result<String> {
-    let out = Command::new("scp").args(COMMON_SSH_ARGS).args([from, to]).output()?.stdout;
-    Ok(String::from_utf8_lossy(&out).into_owned())
+fn scp_execute(from: &str, to: &str) -> std::io::Result<ExitStatus> {
+    Command::new("scp").args(COMMON_SSH_ARGS).args([from, to]).status()
 }
 
 #[derive(Debug, Clone)]

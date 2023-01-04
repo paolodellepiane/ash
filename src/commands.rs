@@ -47,7 +47,7 @@ pub struct ScpArgs {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Copy file/folder from remote
+    /// Copy file/folder to/from remote
     #[command(arg_required_else_help = false, after_help("Folder path not ending with '/' will copy the directory including contents, rather than only the contents of the directory"))]
     Cp(ScpArgs),
     /// Create a tunnel for a predefined service
@@ -71,21 +71,43 @@ pub enum Commands {
     /// Output selected host info
     #[command()]
     Info,
-    /// Try to setup remote container for remote debug
-    #[command()]
-    Vsdbg,
-    /// Get windows event logs
-    #[command()]
-    EventLog,
-    /// Get windows container event logs
-    #[command()]
-    ContainerEventLog,
     /// Get file
     #[command()]
     Get,
     /// Put file
     #[command()]
     Put,
+    /// Get windows event logs
+    #[command()]
+    EventLog,
+    #[command()]
+    Container {
+        #[command(subcommand)]
+        container: Container,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum Container {
+    /// Execute a command in a remote container
+    #[command(arg_required_else_help = true)]
+    Exec {
+        /// Command to execute  (e.g. ash container exec "powershell -Command Write-Host $profile")
+        #[arg(long_help("e.g.:\n'ash container exec \"powershell -Command Write-Host $profile\"'\n'ash container exec \"cmd /C dir \\\"'"))]
+        command: String,
+    },
+    /// Get file from container
+    #[command()]
+    Get,
+    /// Put file into container
+    #[command()]
+    Put,
+    /// Get windows container event logs
+    #[command()]
+    EventLog,
+    /// Try to setup remote container for remote debug
+    #[command()]
+    Vsdbg,
 }
 
 impl Commands {
@@ -188,17 +210,6 @@ impl Commands {
         Ok(())
     }
 
-    pub fn vsdbg(hosts: &Hosts) -> Result<()> {
-        let host_name = &select_profile_then_host(hosts)?;
-        let container = select_container(&hosts.hosts[host_name])?;
-        scp_execute(
-            &Config::vsdbgsh_path().to_string_lossy(),
-            &f!("{host_name}:"),
-        )?;
-        ssh_execute_redirect(host_name, &f!("sudo bash vsdbg.sh {container} 4444"))?;
-        Ok(())
-    }
-
     pub fn win_event_log(hosts: &Hosts) -> Result<()> {
         let host_name = &select_profile_then_host(hosts)?;
         if hosts.hosts[host_name].platform != Platform::Win {
@@ -212,24 +223,8 @@ impl Commands {
         Ok(())
     }
 
-    pub fn win_container_event_log(hosts: &Hosts) -> Result<()> {
-        let host_name = &select_profile_then_host(hosts)?;
-        if hosts.hosts[host_name].platform != Platform::Win {
-            bail!("This command works on Windows only");
-        }
-        let container = select_container(&hosts.hosts[host_name])?;
-        ssh_execute_redirect(
-            host_name,
-            &f!(
-                r#"docker exec {container} cmd /C "del /Q \*.evtx & wevtutil epl System \sys.evtx & wevtutil epl Application \app.evtx & tar -acf \evtx.zip \*.evtx" && docker cp {container}:\evtx.zip ."#
-            ),
-        )?;
-        scp_execute(&f!("{host_name}:evtx.zip"), ".")?;
-        Ok(())
-    }
-
     pub fn get_file(hosts: &Hosts) -> Result<()> {
-        let path = Self::browse_remote(hosts)?;
+        let path = Commands::browse_remote(hosts)?;
         scp_execute(&path, ".")?;
         Ok(())
     }
@@ -288,6 +283,89 @@ impl Commands {
                 return Ok(f!("{host_name}:{base_dir}/{file}"));
             }
         }
+    }
+
+    fn browse_remote_container(hosts: &Hosts) -> Result<(String, String, String)> {
+        let host_name = &select_profile_then_host(hosts)?;
+        let container = select_container(&hosts.hosts[host_name])?;
+        let mut ssh = Ssh::new(host_name)?;
+        ssh.with_prefix(&f!("sudo docker exec {container}"));
+        ssh.write("pwd")?;
+        let mut base_dir = ssh.read()?;
+        loop {
+            ssh.write(&f!("ls --group-directories-first -pa1 '{base_dir}'"))?;
+            let out = ssh.read()?;
+            let entries = parse_ls_output(&out, &"/")?;
+            let options =
+                entries.iter().map(|x| x.file_name.clone()).filter(|x| x != "./").collect_vec();
+            let file = select_host("", &options, "")?;
+            let entry = entries.iter().find(|x| x.file_name == file).unwrap().clone();
+            if entry.is_dir {
+                if entry.file_name == "../" {
+                    if let Some(parent) = Path::new(&base_dir).parent() {
+                        base_dir = parent.to_string_lossy().into_owned();
+                    }
+                } else {
+                    base_dir = f!("{base_dir}/{}", entry.file_name)
+                }
+            } else {
+                return Ok((
+                    host_name.to_string(),
+                    dbg!(f!("{container}:{base_dir}/{file}")),
+                    file,
+                ));
+            }
+        }
+    }
+}
+
+impl Container {
+    pub fn win_container_event_log(hosts: &Hosts) -> Result<()> {
+        let host_name = &select_profile_then_host(hosts)?;
+        if hosts.hosts[host_name].platform != Platform::Win {
+            bail!("This command works on Windows only");
+        }
+        let container = select_container(&hosts.hosts[host_name])?;
+        ssh_execute_redirect(
+            host_name,
+            &f!(
+                r#"docker exec {container} cmd /C "del /Q \*.evtx & wevtutil epl System \sys.evtx & wevtutil epl Application \app.evtx & tar -acf \evtx.zip \*.evtx" && docker cp {container}:\evtx.zip ."#
+            ),
+        )?;
+        scp_execute(&f!("{host_name}:evtx.zip"), ".")?;
+        Ok(())
+    }
+
+    pub fn vsdbg(hosts: &Hosts) -> Result<()> {
+        let host_name = &select_profile_then_host(hosts)?;
+        let container = select_container(&hosts.hosts[host_name])?;
+        scp_execute(
+            &Config::vsdbgsh_path().to_string_lossy(),
+            &f!("{host_name}:"),
+        )?;
+        ssh_execute_redirect(host_name, &f!("sudo bash vsdbg.sh {container} 4444"))?;
+        Ok(())
+    }
+
+    pub fn exec(command: &str, hosts: &Hosts) -> Result<()> {
+        let host_name = &select_profile_then_host(hosts)?;
+        let container = select_container(&hosts.hosts[host_name])?;
+        ssh_execute_redirect(host_name, &f!(r#"docker exec {container} {command}"#))?;
+        Ok(())
+    }
+
+    pub fn get_file(hosts: &Hosts) -> Result<()> {
+        let (host_name, path, file) = Commands::browse_remote_container(hosts)?;
+        ssh_execute_redirect(&host_name, &f!(r#"sudo docker cp {path} {file}"#))?;
+        scp_execute(&f!("{host_name}:{file}"), ".")?;
+        Ok(())
+    }
+
+    pub fn put_file(hosts: &Hosts) -> Result<()> {
+        let path = Commands::browse_local()?;
+        let host_name = &select_profile_then_host(hosts)?;
+        scp_execute(&path, &f!("{host_name}:"))?;
+        Ok(())
     }
 }
 

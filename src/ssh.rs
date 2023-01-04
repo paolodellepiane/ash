@@ -8,6 +8,7 @@ use std::{
 pub struct Ssh {
     stdin: ChildStdin,
     stdout: BufReader<ChildStdout>,
+    prefix: String,
 }
 
 impl Ssh {
@@ -23,11 +24,20 @@ impl Ssh {
         let mut stdout = BufReader::new(stdout);
         let mut buf = [0; 4096];
         _ = stdout.read(&mut buf)?;
-        Ok(Self { stdin, stdout })
+        Ok(Self { stdin, stdout, prefix: Default::default() })
+    }
+
+    pub fn with_prefix(&mut self, prefix: &str) {
+        self.prefix = format!("{prefix} ");
+    }
+
+    pub fn prefix(&self) -> String {
+        self.prefix.clone()
     }
 
     pub fn write(&mut self, cmd: &str) -> Result<()> {
-        writeln!(self.stdin, "{cmd}")?;
+        let prefix = &self.prefix;
+        writeln!(self.stdin, "{prefix}{cmd}")?;
         Ok(())
     }
 

@@ -40,20 +40,24 @@ fn run() -> Result<()> {
         start_value: args.host.clone().unwrap_or_default(),
         bastion: config.bastion_name.clone(),
     };
-    use Commands::*;
     match &args.command {
         Some(cmd) => match cmd {
-            Cp(cp) => Commands::cp(cp, hosts),
-            Service { service } => Commands::tunnel_from_service(service, hosts),
-            Tunnel(tunnel) => Commands::tunnel_from_ports(*tunnel, hosts),
-            Exec { command } => Commands::exec(command, hosts),
-            Code => Commands::code(hosts),
-            Info => Commands::info(hosts),
-            Vsdbg => Commands::vsdbg(hosts),
-            EventLog => Commands::win_event_log(hosts),
-            ContainerEventLog => Commands::win_container_event_log(hosts),
-            Get => Commands::get_file(hosts),
-            Put => Commands::put_file(hosts),
+            Commands::Cp(cp) => Commands::cp(cp, hosts),
+            Commands::Service { service } => Commands::tunnel_from_service(service, hosts),
+            Commands::Tunnel(tunnel) => Commands::tunnel_from_ports(*tunnel, hosts),
+            Commands::Exec { command } => Commands::exec(command, hosts),
+            Commands::Code => Commands::code(hosts),
+            Commands::Info => Commands::info(hosts),
+            Commands::EventLog => Commands::win_event_log(hosts),
+            Commands::Get => Commands::get_file(hosts),
+            Commands::Put => Commands::put_file(hosts),
+            Commands::Container { container } => match container {
+                Container::EventLog => Container::win_container_event_log(hosts),
+                Container::Vsdbg => Container::vsdbg(hosts),
+                Container::Get => Container::get_file(hosts),
+                Container::Put => Container::put_file(hosts),
+                Container::Exec { command } => Container::exec(command, hosts),
+            },
         },
         None => Commands::ssh(hosts),
     }

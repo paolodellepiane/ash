@@ -1,5 +1,6 @@
 use crate::commands::Hosts;
 use crate::config::CFG;
+use crate::parsers::ssh_config_parser::Host;
 use crate::prelude::*;
 use crate::{config::Config, parsers};
 use dialoguer::console::{Color, Style};
@@ -15,12 +16,12 @@ use std::{collections::HashMap, fs::File};
 
 #[derive(Serialize, Deserialize, Default)]
 pub struct History {
-    entries: Vec<String>,
+    entries: Vec<Host>,
 }
 
 impl History {
     pub fn load() -> Self {
-        let path = Config::config_dir().join("history");
+        let path = Config::history_path();
         if !path.exists() {
             History { ..Default::default() }.save();
         }
@@ -28,26 +29,21 @@ impl History {
         serde_json::from_reader(h).expect("Error deserializing history")
     }
 
-    pub fn update(entry: &str) {
+    pub fn update(host: &Host) {
         let mut h = Self::load();
-        h.entries.retain(|x| x != entry);
-        h.entries.insert(0, entry.to_owned());
+        h.entries.retain(|x| x.key() != host.key());
+        h.entries.insert(0, host.to_owned());
         h.save();
     }
 
     pub fn intersect(hosts: &HashMap<String, parsers::ssh_config_parser::Host>) {
         let mut h = Self::load();
-        let mut iter = hosts.keys();
-        h.entries.retain(|x| iter.any(|y| y == x));
+        h.entries.retain(|x| hosts.values().any(|y| y.key() == x.key()));
         h.save();
     }
 
     fn save(&self) {
-        std::fs::write(
-            Config::config_dir().join("history"),
-            serde_json::to_string(self).unwrap(),
-        )
-        .unwrap();
+        std::fs::write(Config::history_path(), serde_json::to_string(self).unwrap()).unwrap();
     }
 }
 
@@ -84,44 +80,56 @@ pub fn select_idx(message: &str, options: &Vec<String>, start_value: &str) -> Re
     Ok(selection)
 }
 
-pub fn select(message: &str, options: &Vec<String>, start_value: &str) -> Result<String> {
+pub fn select_host(message: &str, options: &Vec<String>, start_value: &str) -> Result<String> {
     let idx = select_idx(message, options, start_value)?;
     Ok(options.get(idx).unwrap().clone())
 }
 
-pub fn select_profile_then_host(Hosts { hosts, start_value, .. }: &Hosts) -> Result<String> {
+pub fn _select_profile_then_host(Hosts { hosts, start_value, .. }: &Hosts) -> Result<String> {
     if CFG.0.merge_profiles {
         let values = hosts.iter().map(|(name, _)| name.clone()).collect_vec();
-        let selected = select("", &values, start_value);
+        let selected = select_host("", &values, start_value);
         if let Ok(s) = &selected {
-            History::update(s);
+            History::update(&hosts[s]);
         }
         return selected;
     }
     let _select_profile_then_host = |(start_profile, start_host): (&str, &str)| {
         let profiles = hosts.iter().map(|(_, h)| h.profile.clone()).unique();
-        let profiles = once("history".to_string()).chain(profiles).collect_vec();
-        let profile = select("", &profiles, start_profile)?;
+        let history = &History::load();
+        let profiles = if history.entries.is_empty() {
+            profiles.collect_vec()
+        } else {
+            once("history".to_string()).chain(profiles).collect_vec()
+        };
+        let profile = select_host("", &profiles, start_profile)?;
         let values = hosts
             .iter()
             .filter_map(|(_, h)| (h.profile == profile).then_some(h.name.clone()))
             .collect_vec();
-        let selected = if profile == "history" {
-            select(&f!("[{profile}]"), &History::load().entries, start_host)
+        if profile == "history" {
+            select_idx(
+                &f!("[{profile}]"),
+                &history.entries.iter().map(|x| x.key()).collect(),
+                start_host,
+            )
+            .map(|idx| history.entries[idx].name.clone())
         } else {
-            select(&f!("[{profile}]"), &values, start_host)
-        };
-        if let Ok(s) = &selected {
-            History::update(s);
+            select_host(&f!("[{profile}]"), &values, start_host)
         }
-        selected
     };
     match start_value {
         sv if sv.contains(':') => _select_profile_then_host(sv.split_once(':').unwrap()),
         sv if sv.is_empty() => _select_profile_then_host(("", "")),
         _ => {
             let values = hosts.iter().map(|(name, _)| name.clone()).collect_vec();
-            select("", &values, start_value)
+            select_host("", &values, start_value)
         }
     }
+}
+
+pub fn select_profile_then_host(hosts: &Hosts) -> Result<String> {
+    let selected = _select_profile_then_host(hosts)?;
+    History::update(&hosts.hosts[&selected]);
+    Ok(selected)
 }

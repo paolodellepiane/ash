@@ -20,8 +20,7 @@
                 }
             },
             "args": [
-                "dev13lnx",
-                "get"
+                "release13win"
             ],
             "cwd": "${workspaceFolder}"
         },

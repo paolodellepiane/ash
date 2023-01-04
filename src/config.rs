@@ -97,6 +97,10 @@ impl Config {
         Self::config_dir().join("cache")
     }
 
+    pub fn history_path() -> PathBuf {
+        Self::config_dir().join("history")
+    }
+
     pub fn code_cmd() -> String {
         if cfg!(windows) { "code.cmd" } else { "code" }.into()
     }
@@ -111,6 +115,7 @@ impl Config {
                 std::fs::remove_file(template_path).context("can't reset template")?;
                 std::fs::remove_file(config_path).context("can't reset config")?;
                 std::fs::remove_file(vsdbg_path).context("can't reset vsdbg.sh")?;
+                std::fs::remove_file(Self::history_path()).context("can't reset history")?;
                 std::fs::remove_file(Self::cache_path()).context("can't reset cache")?;
             }
             exit(0)

@@ -1,16 +1,16 @@
 use crate::{config::Config, prelude::*};
 use pest::Parser;
 use pest_derive::Parser;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Clone, Debug, Serialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub enum Platform {
     Win,
     Lnx,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Host {
     pub name: String,
     pub profile: String,
@@ -19,6 +19,12 @@ pub struct Host {
     pub user: Option<String>,
     pub key: Option<String>,
     pub bastion: Option<String>,
+}
+
+impl Host {
+    pub fn key(&self) -> String {
+        f!("{}/{}", self.profile, self.name)
+    }
 }
 
 #[derive(Parser)]

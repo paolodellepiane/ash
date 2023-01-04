@@ -247,7 +247,7 @@ impl Commands {
             let entries = read_dir(&base_dir)?;
             let options =
                 entries.iter().map(|x| x.file_name.clone()).filter(|x| x != "./").collect_vec();
-            let file = select("", &options, "")?;
+            let file = select_host("", &options, "")?;
             let entry = entries.iter().find(|x| x.file_name == file).unwrap().clone();
             if entry.is_dir {
                 if entry.file_name == "../" {
@@ -274,7 +274,7 @@ impl Commands {
             let entries = parse_ls_output(&out, &"/")?;
             let options =
                 entries.iter().map(|x| x.file_name.clone()).filter(|x| x != "./").collect_vec();
-            let file = select("", &options, "")?;
+            let file = select_host("", &options, "")?;
             let entry = entries.iter().find(|x| x.file_name == file).unwrap().clone();
             if entry.is_dir {
                 if entry.file_name == "../" {

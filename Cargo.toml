@@ -24,6 +24,7 @@ dialoguer = { git = "https://github.com/mitsuhiko/dialoguer", rev = "0c8b5e5a", 
 ] }
 fuzzy-matcher = "0.3.7"
 eyre = { version = "0.6" }
+clap_complete = "4.0.7"
 
 [profile.release]
 strip = true    # Automatically strip symbols from the binary.

@@ -1,5 +1,6 @@
 use crate::{commands::Commands, prelude::*};
-use clap::{Parser, ValueEnum};
+use clap::{CommandFactory, Parser, ValueEnum};
+use clap_complete::{generate, Shell};
 use directories::UserDirs;
 use once_cell::sync::Lazy;
 use serde::Deserialize;
@@ -47,6 +48,10 @@ pub struct AshArgs {
     /// Check for ash update
     #[arg(long, default_value_t = false)]
     pub check_update: bool,
+
+    /// Check for ash update
+    #[arg(long, value_enum)]
+    pub auto_complete: Option<Shell>,
 }
 
 #[derive(ValueEnum, Clone, Debug)]
@@ -81,6 +86,14 @@ impl Config {
         Self::user_dirs().home_dir().join(".config").join("ash")
     }
 
+    pub fn auto_complete_path(shell: clap_complete::Shell) -> PathBuf {
+        let ext = match shell {
+            Shell::PowerShell => "ps1",
+            _ => "sh",
+        };
+        Self::config_dir().join(f!("auto-complete.{ext}"))
+    }
+
     pub fn config_path() -> PathBuf {
         Self::config_dir().join(CONFIG_FILE_NAME)
     }
@@ -110,6 +123,10 @@ impl Config {
         let config_path = Self::config_path();
         let template_path = Self::template_path();
         let vsdbg_path = Self::vsdbgsh_path();
+        if let Some(shell) = args.auto_complete {
+            generate_auto_complete(shell)?;
+            exit(0)
+        }
         if args.reset {
             if config_path.exists() {
                 std::fs::remove_file(template_path).context("can't reset template")?;
@@ -146,6 +163,25 @@ impl Config {
         args.verbose.then(|| p!("{config:?}"));
         Ok((config, args))
     }
+}
+
+fn generate_auto_complete(shell: Shell) -> Result<(), eyre::ErrReport> {
+    let cmd = &mut AshArgs::command();
+    eprintln!("Generating completion file for {}...", shell);
+    let file_path = Config::auto_complete_path(shell);
+    let file = &mut std::fs::File::create(&file_path)?;
+    generate(shell, cmd, cmd.get_name().to_string(), file);
+    match shell {
+        Shell::PowerShell => p!(
+            "\nMake sure to add the following line to your powershell profile (open powershell and run 'explorer $profile'):\n. \"{}\"",
+            file_path.display()
+        ),
+        _ => p!(
+            "\nMake sure to add the following line to your profile:\nsource '{}'",
+            file_path.display()
+        ),
+    };
+    Ok(())
 }
 
 pub static CFG: Lazy<(Config, AshArgs)> = Lazy::new(|| Config::load().expect("Can't load config"));

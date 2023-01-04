@@ -15,7 +15,6 @@ use std::collections::HashMap;
 use std::fs::DirEntry;
 use std::io::BufRead;
 use std::io::BufReader;
-use std::io::Read;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;

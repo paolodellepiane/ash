@@ -6,6 +6,7 @@ use crate::parsers::ssh_config_parser::Platform;
 use crate::prelude::*;
 use crate::select::*;
 use crate::ssh::Ssh;
+use crate::teleport::Welcome;
 use clap::arg;
 use clap::command;
 use clap::Args;
@@ -180,7 +181,7 @@ impl Commands {
         Ok(())
     }
 
-    pub fn ssh(hosts: &Hosts) -> Result<()> {
+    pub fn ssh(hosts: &Welcome) -> Result<()> {
         let name = &select_profile_then_host(hosts)?;
         p!("Connecting to {name}...");
         Command::new("ssh").args(COMMON_SSH_ARGS).arg(name).status()?;

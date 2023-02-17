@@ -1,4 +1,4 @@
-use crate::{commands::Commands, prelude::*};
+use crate::prelude::*;
 use clap::{CommandFactory, Parser, ValueEnum};
 use clap_complete::{generate, Shell};
 use directories::UserDirs;
@@ -20,6 +20,7 @@ pub const COMMON_SSH_ARGS: &[&str] = &[
     "-o",
     "UserKnownHostsFile=/dev/null",
 ];
+pub const COMMON_TSH_ARGS: &[&str] = &["--proxy", "teleport.mago.cloud", "--auth", "github"];
 pub const VSDBGSH: &str = include_str!("../res/vsdbg.sh");
 pub const VSDBGSH_FILE_NAME: &str = "vsdbg.sh";
 
@@ -43,8 +44,8 @@ pub struct AshArgs {
     /// Verbose
     #[arg(long, default_value_t)]
     pub verbose: bool,
-    #[command(subcommand)]
-    pub command: Option<Commands>,
+    // #[command(subcommand)]
+    // pub command: Option<Commands>,
     /// Check for ash update
     #[arg(long, default_value_t = false)]
     pub check_update: bool,

@@ -1,8 +1,0 @@
-WHITESPACE = _{ " " }
-char = { !("["|"]"|"="|NEWLINE) ~ ANY}
-value = @{ (!" " ~ char)* }
-name = @{ (!" " ~ char)+ }
-section_name = @{ char+ }
-section = { "[" ~ section_name ~ "]" }
-property = { name ~ "=" ~ value }
-file = { SOI ~ ((section | property | NEWLINE)+ ~ NEWLINE?)* ~ EOI }

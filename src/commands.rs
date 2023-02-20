@@ -119,11 +119,7 @@ impl Commands {
         if bastion.is_empty() {
             bail!("Can't tunnel without bastion");
         }
-        let bastion = hosts
-            .hosts
-            .get(bastion)
-            .ok_or_else(|| eyre!("Can't find bastion {bastion:?}"))?
-            .clone();
+        let bastion = hosts.hosts.get(bastion).ok_or_else(|| eyre!("Can't find bastion {bastion:?}"))?.clone();
         let bastion_name = &bastion.name;
         let choice = select_profile_then_host(hosts)?;
         let Host { name, address, .. } = &hosts.hosts[&choice];
@@ -152,11 +148,8 @@ impl Commands {
                 if is_from && path.is_empty() {
                     bail!("FROM must contain a path to file or folder")
                 }
-                let hosts = &Hosts {
-                    start_value: start_value.to_string(),
-                    hosts: hosts.hosts.clone(),
-                    bastion: String::new(),
-                };
+                let hosts =
+                    &Hosts { start_value: start_value.to_string(), hosts: hosts.hosts.clone(), bastion: String::new() };
                 let name = select_profile_then_host(hosts)?;
                 let res = f!("{name}:{path}");
                 Ok(res)
@@ -198,9 +191,7 @@ impl Commands {
     pub fn code(hosts: &Hosts) -> Result<()> {
         let name = &select_profile_then_host(hosts)?;
         p!("Connect vscode to remote host {name}...");
-        Command::new(Config::code_cmd())
-            .args(["--folder-uri", &f!("vscode-remote://ssh-remote+{name}/")])
-            .status()?;
+        Command::new(Config::code_cmd()).args(["--folder-uri", &f!("vscode-remote://ssh-remote+{name}/")]).status()?;
         Ok(())
     }
 
@@ -241,8 +232,7 @@ impl Commands {
         let mut base_dir = Config::home_dir();
         loop {
             let entries = read_dir(&base_dir)?;
-            let options =
-                entries.iter().map(|x| x.file_name.clone()).filter(|x| x != "./").collect_vec();
+            let options = entries.iter().map(|x| x.file_name.clone()).filter(|x| x != "./").collect_vec();
             let file = select_host("", &options, "")?;
             let entry = entries.iter().find(|x| x.file_name == file).unwrap().clone();
             if entry.is_dir {
@@ -268,8 +258,7 @@ impl Commands {
             ssh.write(&f!("ls --group-directories-first -pa1 '{base_dir}'"))?;
             let out = ssh.read()?;
             let entries = parse_ls_output(&out, &"/")?;
-            let options =
-                entries.iter().map(|x| x.file_name.clone()).filter(|x| x != "./").collect_vec();
+            let options = entries.iter().map(|x| x.file_name.clone()).filter(|x| x != "./").collect_vec();
             let file = select_host("", &options, "")?;
             let entry = entries.iter().find(|x| x.file_name == file).unwrap().clone();
             if entry.is_dir {
@@ -297,8 +286,7 @@ impl Commands {
             ssh.write(&f!("ls --group-directories-first -pa1 '{base_dir}'"))?;
             let out = ssh.read()?;
             let entries = parse_ls_output(&out, &"/")?;
-            let options =
-                entries.iter().map(|x| x.file_name.clone()).filter(|x| x != "./").collect_vec();
+            let options = entries.iter().map(|x| x.file_name.clone()).filter(|x| x != "./").collect_vec();
             let file = select_host("", &options, "")?;
             let entry = entries.iter().find(|x| x.file_name == file).unwrap().clone();
             if entry.is_dir {
@@ -310,11 +298,7 @@ impl Commands {
                     base_dir = f!("{base_dir}/{}", entry.file_name)
                 }
             } else {
-                return Ok((
-                    host_name.to_string(),
-                    dbg!(f!("{container}:{base_dir}/{file}")),
-                    file,
-                ));
+                return Ok((host_name.to_string(), dbg!(f!("{container}:{base_dir}/{file}")), file));
             }
         }
     }
@@ -340,10 +324,7 @@ impl Container {
     pub fn vsdbg(hosts: &Hosts) -> Result<()> {
         let host_name = &select_profile_then_host(hosts)?;
         let container = select_container(&hosts.hosts[host_name])?;
-        scp_execute(
-            &Config::vsdbgsh_path().to_string_lossy(),
-            &f!("{host_name}:"),
-        )?;
+        scp_execute(&Config::vsdbgsh_path().to_string_lossy(), &f!("{host_name}:"))?;
         ssh_execute_redirect(host_name, &f!("sudo bash vsdbg.sh {container} 4444"))?;
         Ok(())
     }
@@ -394,11 +375,7 @@ fn select_container(host: &Host) -> Result<String> {
         .filter(|s| s.len() == 3)
         .map(|s| [s[0], s[1], s[2]])
         .collect_vec();
-    let idx = select_idx(
-        "",
-        &containers.iter().map(|s| s.join(" - ")).collect_vec(),
-        "",
-    )?;
+    let idx = select_idx("", &containers.iter().map(|s| s.join(" - ")).collect_vec(), "")?;
     Ok(containers[idx][0].to_string())
 }
 
@@ -411,17 +388,9 @@ fn ssh_execute_output(host_name: &str, cmd: &str) -> Result<String> {
 }
 
 fn ssh_execute_redirect(host_name: &str, cmd: &str) -> Result<String> {
-    let mut output = Command::new("ssh")
-        .args(COMMON_SSH_ARGS)
-        .args([host_name, cmd])
-        .stdout(Stdio::piped())
-        .spawn()?;
+    let mut output = Command::new("ssh").args(COMMON_SSH_ARGS).args([host_name, cmd]).stdout(Stdio::piped()).spawn()?;
     if let Some(stdout) = output.stdout.take() {
-        let out = BufReader::new(stdout)
-            .lines()
-            .filter_map(|l| l.ok())
-            .inspect(|l| p!("{l}"))
-            .collect_vec();
+        let out = BufReader::new(stdout).lines().filter_map(|l| l.ok()).inspect(|l| p!("{l}")).collect_vec();
         return Ok(out.join("\n"));
     }
     Ok(String::from(""))

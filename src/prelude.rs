@@ -42,3 +42,25 @@ pub fn fst<F, S>(x: (F, S)) -> F {
 pub fn snd<F, S>(x: (F, S)) -> S {
     x.1
 }
+
+pub trait Inspect<T, E> {
+    fn tap(self, f: impl FnOnce(&Result<T, E>)) -> Result<T, E>;
+    fn tap_err(self, f: impl FnOnce(&E)) -> Result<T, E>;
+}
+
+impl<T, E> Inspect<T, E> for Result<T, E> {
+    fn tap(self, f: impl FnOnce(&Result<T, E>)) -> Result<T, E> {
+        f(&self);
+        self
+    }
+
+    fn tap_err(self, f: impl FnOnce(&E)) -> Result<T, E> {
+        match self {
+            Ok(_) => self,
+            Err(ref err) => {
+                f(err);
+                self
+            }
+        }
+    }
+}

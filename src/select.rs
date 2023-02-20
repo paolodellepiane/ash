@@ -1,4 +1,3 @@
-use crate::history::History;
 use crate::prelude::*;
 use crate::teleport::{Host, Hosts};
 use dialoguer::console::{Color, Style};
@@ -52,6 +51,5 @@ pub fn select_teleport_host(SelectArgs { hosts, start_value }: &SelectArgs) -> R
     let values = hosts.iter().map(|h| f!("{:width$} [{h}]", h.spec.hostname.clone(),)).collect_vec();
     let idx = select("", &values, start_value)?;
     let selected = hosts.get(idx).unwrap();
-    History::update(selected);
     Ok(selected.clone())
 }

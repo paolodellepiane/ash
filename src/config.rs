@@ -1,25 +1,10 @@
-use crate::prelude::*;
-use clap::{CommandFactory, Parser, ValueEnum};
-use clap_complete::{generate, Shell};
+use clap::Parser;
+use clap_complete::Shell;
 use directories::UserDirs;
-use once_cell::sync::Lazy;
-use serde::Deserialize;
-use std::{
-    fs::File,
-    path::PathBuf,
-    process::{exit, Command},
-};
+use std::path::PathBuf;
 
 pub const CONFIG_FILE_NAME: &str = "ash.config.json";
-pub const TEMPLATE_FILE_NAME: &str = "template.for.sshconfig.hbs";
-pub const DEFAULT_TEMPLATE: &str = include_str!("../res/template.for.sshconfig.hbs");
 pub const DEFAULT_CONFIG: &str = include_str!("../ash.config.json");
-pub const COMMON_SSH_ARGS: &[&str] = &[
-    "-o",
-    "StrictHostKeyChecking=no",
-    "-o",
-    "UserKnownHostsFile=/dev/null",
-];
 pub const COMMON_TSH_ARGS: &[&str] = &["--proxy", "teleport.mago.cloud", "--auth", "github"];
 pub const VSDBGSH: &str = include_str!("../res/vsdbg.sh");
 pub const VSDBGSH_FILE_NAME: &str = "vsdbg.sh";
@@ -55,24 +40,7 @@ pub struct AshArgs {
     pub auto_complete: Option<Shell>,
 }
 
-#[derive(ValueEnum, Clone, Debug)]
-pub enum Service {
-    Rdp,
-    Redis,
-    Rds,
-    RabbitMq,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct Config {
-    pub keys_path: String,
-    #[serde(default)]
-    pub bastion_name: String,
-    #[serde(default)]
-    pub update: bool,
-    #[serde(default)]
-    pub merge_profiles: bool,
-}
+pub struct Config;
 
 impl Config {
     pub fn user_dirs() -> UserDirs {
@@ -87,28 +55,8 @@ impl Config {
         Self::user_dirs().home_dir().join(".config").join("ash")
     }
 
-    pub fn auto_complete_path(shell: clap_complete::Shell) -> PathBuf {
-        let ext = match shell {
-            Shell::PowerShell => "ps1",
-            _ => "sh",
-        };
-        Self::config_dir().join(f!("auto-complete.{ext}"))
-    }
-
     pub fn config_path() -> PathBuf {
         Self::config_dir().join(CONFIG_FILE_NAME)
-    }
-
-    pub fn template_path() -> PathBuf {
-        Self::config_dir().join(TEMPLATE_FILE_NAME)
-    }
-
-    pub fn vsdbgsh_path() -> PathBuf {
-        Self::config_dir().join(VSDBGSH_FILE_NAME)
-    }
-
-    pub fn cache_path() -> PathBuf {
-        Self::config_dir().join("cache")
     }
 
     pub fn history_path() -> PathBuf {
@@ -118,71 +66,4 @@ impl Config {
     pub fn code_cmd() -> String {
         if cfg!(windows) { "code.cmd" } else { "code" }.into()
     }
-
-    pub fn load() -> Result<(Config, AshArgs)> {
-        let args = AshArgs::parse();
-        let config_path = Self::config_path();
-        let template_path = Self::template_path();
-        let vsdbg_path = Self::vsdbgsh_path();
-        if let Some(shell) = args.auto_complete {
-            generate_auto_complete(shell)?;
-            exit(0)
-        }
-        if args.reset {
-            if config_path.exists() {
-                std::fs::remove_file(template_path).context("can't reset template")?;
-                std::fs::remove_file(config_path).context("can't reset config")?;
-                std::fs::remove_file(vsdbg_path).context("can't reset vsdbg.sh")?;
-                std::fs::remove_file(Self::history_path()).context("can't reset history")?;
-                std::fs::remove_file(Self::cache_path()).context("can't reset cache")?;
-            }
-            exit(0)
-        }
-        std::fs::create_dir_all(Self::config_dir())?;
-        if !config_path.exists() {
-            std::fs::write(&config_path, DEFAULT_CONFIG)?;
-        }
-        if !template_path.exists() {
-            std::fs::write(&template_path, DEFAULT_TEMPLATE)?;
-        }
-        if !vsdbg_path.exists() {
-            std::fs::write(&vsdbg_path, VSDBGSH)?;
-        }
-        if args.clear_cache {
-            std::fs::remove_file(Self::cache_path()).context("can't clear cache")?;
-        }
-        if args.config {
-            Command::new(Self::code_cmd()).arg(Self::config_dir()).status()?;
-            exit(0)
-        }
-        let config = File::open(&config_path).context(f!("can't find config: {config_path:?}"))?;
-        let mut config: Config =
-            serde_json::from_reader(config).context("Error deserializing config")?;
-        config.keys_path =
-            config.keys_path.replace('~', Self::home_dir().to_str().expect("can't get home dir"));
-        config.update = config.update || args.update;
-        args.verbose.then(|| p!("{config:?}"));
-        Ok((config, args))
-    }
 }
-
-fn generate_auto_complete(shell: Shell) -> Result<(), eyre::ErrReport> {
-    let cmd = &mut AshArgs::command();
-    eprintln!("Generating completion file for {}...", shell);
-    let file_path = Config::auto_complete_path(shell);
-    let file = &mut std::fs::File::create(&file_path)?;
-    generate(shell, cmd, cmd.get_name().to_string(), file);
-    match shell {
-        Shell::PowerShell => p!(
-            "\nMake sure to add the following line to your powershell profile (open powershell and run 'explorer $profile'):\n. \"{}\"",
-            file_path.display()
-        ),
-        _ => p!(
-            "\nMake sure to add the following line to your profile:\nsource '{}'",
-            file_path.display()
-        ),
-    };
-    Ok(())
-}
-
-pub static CFG: Lazy<(Config, AshArgs)> = Lazy::new(|| Config::load().expect("Can't load config"));

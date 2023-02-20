@@ -1,5 +1,6 @@
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display};
 
 pub type Welcome = Vec<WelcomeElement>;
 
@@ -9,6 +10,26 @@ pub struct WelcomeElement {
     pub version: String,
     pub metadata: Metadata,
     pub spec: Spec,
+}
+
+impl Display for WelcomeElement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let display = self
+            .metadata
+            .labels
+            .iter()
+            .filter(|(k, _)| !k.starts_with("teleport.internal"))
+            .map(|(k, v)| format!("{k}: {v}"))
+            .join(", ");
+        f.write_str(&display);
+        Ok(())
+    }
+}
+
+impl PartialEq for WelcomeElement {
+    fn eq(&self, other: &Self) -> bool {
+        self.metadata.name == other.metadata.name
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

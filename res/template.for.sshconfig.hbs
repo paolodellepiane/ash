@@ -1,8 +1,0 @@
-{{#each this as |t| }}
-Host {{t.name}}
-# profile {{t.profile}},{{t.platform}}
-    HostName {{t.address}}
-    User {{t.user}}
-    IdentityFile {{t.key}}
-    {{#if t.proxy_jump}}ProxyJump {{t.proxy_jump}}{{/if}}
-{{/each}}

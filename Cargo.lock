@@ -13,7 +13,6 @@ dependencies = [
  "eyre",
  "fuzzy-matcher",
  "itertools",
- "once_cell",
  "serde",
  "serde_json",
 ]

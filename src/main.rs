@@ -1,9 +1,10 @@
 #![warn(clippy::all)]
 use crate::{config::COMMON_TSH_ARGS, select::History};
-use config::CFG;
+use clap::Parser;
+use config::AshArgs;
 use prelude::*;
 use select::{select_teleport_host, SelectArgs};
-use std::process::{exit, Command};
+use std::process::Command;
 use teleport::{Welcome, WelcomeElement};
 
 mod config;
@@ -19,27 +20,24 @@ pub fn ssh(host: &WelcomeElement) -> Result<()> {
     Ok(())
 }
 
-fn _requires_login() -> Result<bool> {
-    let status = Command::new("tsh").args(["status"]).output()?;
-    Ok(std::str::from_utf8(&status.stderr).unwrap().contains("Not logged in"))
+fn check_ash_update() -> Result<()> {
+    if cfg!(windows) {
+        std::process::Command::new("scoop.cmd").args(["update", "-k", "ash"]).spawn()?;
+    } else {
+        bail!("not implemented on this platform");
+    }
+    Ok(())
 }
 
 fn run() -> Result<()> {
-    let (_, args) = &*CFG;
+    let args = AshArgs::parse();
     if args.check_update {
-        if cfg!(windows) {
-            std::process::Command::new("scoop.cmd").args(["update", "-k", "ash"]).spawn()?;
-        } else {
-            p!("not implemented on this platform");
-        }
-        return Ok(());
+        return check_ash_update();
     }
-    let start_value = args.host.clone().unwrap_or_default();
-    let hosts =
-        Command::new("tsh").args(COMMON_TSH_ARGS).args(["ls", "-f", "json"]).output()?.stdout;
+    let start_value = args.host.unwrap_or_default();
+    let hosts = Command::new("tsh").args(COMMON_TSH_ARGS).args(["ls", "-f", "json"]).output()?.stdout;
     let hosts: Welcome = serde_json::from_slice(&hosts)?;
-    History::intersect(&hosts);
-    let host = select_teleport_host(&SelectArgs { hosts, start_value })?;
+    let host = select_teleport_host(SelectArgs { hosts, start_value })?;
     ssh(&host)?;
     Ok(())
 }

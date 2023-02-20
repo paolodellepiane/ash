@@ -28,14 +28,14 @@ impl History {
 
     pub fn update(host: &WelcomeElement) {
         let mut h = Self::load();
-        h.entries.retain(|x| x.metadata.id != host.metadata.id);
+        h.entries.retain(|x| x.metadata.name != host.metadata.name);
         h.entries.insert(0, host.to_owned());
         h.save();
     }
 
     pub fn intersect(hosts: &Welcome) {
         let mut h = Self::load();
-        h.entries.retain(|x| hosts.iter().any(|y| y.metadata.id == x.metadata.id));
+        h.entries.retain(|x| hosts.iter().any(|y| y.metadata.name == x.metadata.name));
         h.save();
     }
 
@@ -82,25 +82,13 @@ pub struct SelectArgs {
     pub start_value: String,
 }
 
-pub fn select_teleport_host(
-    SelectArgs { hosts, start_value }: &SelectArgs,
-) -> Result<WelcomeElement> {
+pub fn select_teleport_host(SelectArgs { mut hosts, ref start_value }: SelectArgs) -> Result<WelcomeElement> {
+    History::intersect(&hosts);
+    let recents = History::load().entries;
     let width = hosts.iter().map(|x| x.spec.hostname.len()).max().unwrap_or(20);
-    let values = hosts
-        .iter()
-        .map(|h| {
-            f!(
-                "{:width$} [{}]",
-                h.spec.hostname.clone(),
-                h.metadata
-                    .labels
-                    .iter()
-                    .filter(|(k, _)| !k.starts_with("teleport.internal"))
-                    .map(|(k, v)| f!("{k}: {v}"))
-                    .join(", ")
-            )
-        })
-        .collect_vec();
+    hosts.retain(|x| !recents.contains(x));
+    let hosts = [recents, hosts].concat();
+    let values = hosts.iter().map(|h| f!("{:width$} [{h}]", h.spec.hostname.clone(),)).collect_vec();
     let idx = select("", &values, start_value)?;
     let selected = hosts.get(idx).unwrap();
     History::update(selected);

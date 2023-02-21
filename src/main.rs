@@ -1,44 +1,36 @@
 #![warn(clippy::all)]
-use crate::options::COMMON_TSH_ARGS;
-use history::History;
-use options::Options;
+use commands::Commands;
 use prelude::*;
-use select::{select_teleport_host, SelectArgs};
-use std::{path::Path, process::Command};
-use teleport::{Host, Hosts};
+use settings::Settings;
 
+mod commands;
 mod history;
-mod options;
 mod prelude;
 mod select;
+mod settings;
+mod ssh;
 mod teleport;
 
-pub fn ssh(host: &Host) -> Result<()> {
-    let name = &host.spec.hostname;
-    p!("Connecting to {name}...");
-    Command::new("tsh").args(COMMON_TSH_ARGS).args(["ssh", &f!("ubuntu@{name}")]).status()?;
-    Ok(())
-}
-
-fn get_hosts() -> Result<Vec<Host>> {
-    let hosts = Command::new("tsh").args(COMMON_TSH_ARGS).args(["ls", "-f", "json"]).output()?.stdout;
-    let hosts: Hosts = serde_json::from_slice(&hosts)?;
-    Ok(hosts)
-}
-
-fn add_recents(mut hosts: Vec<Host>, history_path: impl AsRef<Path>) -> Vec<Host> {
-    let recents = History::load(history_path).intersect(&hosts).entries;
-    hosts.retain(|x| !recents.contains(x));
-    [recents, hosts].concat()
-}
-
 fn main() -> Result<()> {
-    let opt = Options::new()?;
-    let hosts = get_hosts()?;
-    let hosts = add_recents(hosts, &opt.history_path);
-    let start_value = opt.args.host.unwrap_or_default();
-    let host = select_teleport_host(&SelectArgs { hosts, start_value })?;
-    History::load(&opt.history_path).update(&host);
-    ssh(&host)?;
+    let settings = Settings::new()?;
+    match &settings.args.command {
+        Some(cmd) => match cmd {
+            Commands::Exec { command } => commands::exec(&settings, command),
+            Commands::Code => commands::code(&settings),
+            Commands::Get => commands::get_file(&settings),
+            Commands::Put => commands::put_file(&settings),
+            Commands::EventLog => todo!(),
+            Commands::Config => commands::append_tsh_to_ssh_config(),
+            // Commands::Container { container } => todo!(),
+            // Commands::Container { container } => match container {
+            //     Container::EventLog => Container::win_container_event_log(hosts),
+            //     Container::Vsdbg => Container::vsdbg(hosts),
+            //     Container::Get => Container::get_file(hosts),
+            //     Container::Put => Container::put_file(hosts),
+            //     Container::Exec { command } => Container::exec(command, hosts),
+            // },
+        },
+        None => commands::ssh(&settings),
+    }?;
     Ok(())
 }

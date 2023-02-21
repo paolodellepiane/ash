@@ -12,6 +12,21 @@ pub struct Host {
     pub spec: Spec,
 }
 
+impl Host {
+    pub fn name(&self) -> &str {
+        &self.spec.hostname
+    }
+
+    pub fn ssh_name(&self) -> String {
+        let cluster = self.metadata.labels.get("cluster").cloned().unwrap_or_default();
+        format!("{}.{cluster}", self.spec.hostname)
+    }
+
+    pub fn key(&self) -> &str {
+        &self.metadata.name
+    }
+}
+
 impl Display for Host {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let display = self
@@ -27,7 +42,7 @@ impl Display for Host {
 
 impl PartialEq for Host {
     fn eq(&self, other: &Self) -> bool {
-        self.metadata.name == other.metadata.name
+        self.key() == other.key()
     }
 }
 

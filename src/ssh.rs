@@ -22,13 +22,13 @@ impl Ssh {
         Ok(Self { stdin, stdout, prefix: Default::default() })
     }
 
-    pub fn with_prefix(&mut self, prefix: &str) {
-        self.prefix = format!("{prefix} ");
-    }
+    // pub fn with_prefix(&mut self, prefix: &str) {
+    //     self.prefix = format!("{prefix} ");
+    // }
 
-    pub fn prefix(&self) -> String {
-        self.prefix.clone()
-    }
+    // pub fn prefix(&self) -> String {
+    //     self.prefix.clone()
+    // }
 
     pub fn write(&mut self, cmd: &str) -> Result<()> {
         let prefix = &self.prefix;

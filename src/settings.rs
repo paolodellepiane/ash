@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use crate::{commands::Commands, prelude::*};
 use clap::Parser;
 use clap_complete::Shell;
 use directories::UserDirs;
@@ -25,8 +25,8 @@ pub struct AshArgs {
     /// Reset to default configuration
     #[arg(long, default_value_t)]
     pub reset: bool,
-    // #[command(subcommand)]
-    // pub command: Option<Commands>,
+    #[command(subcommand)]
+    pub command: Option<Commands>,
     /// Check for ash update
     #[arg(long, default_value_t = false)]
     pub check_update: bool,
@@ -36,7 +36,7 @@ pub struct AshArgs {
     pub auto_complete: Option<Shell>,
 }
 
-pub struct Options {
+pub struct Settings {
     pub user_dirs: UserDirs,
     pub home_dir: PathBuf,
     pub config_dir: PathBuf,
@@ -45,9 +45,10 @@ pub struct Options {
     pub code_cmd: String,
     pub vsdbgsh_path: PathBuf,
     pub args: AshArgs,
+    pub start_value: String,
 }
 
-impl Options {
+impl Settings {
     pub fn new() -> Result<Self> {
         let user_dirs = UserDirs::new().expect("can't get user dirs");
         let home_dir = user_dirs.home_dir().to_owned();
@@ -57,6 +58,7 @@ impl Options {
         let code_cmd = if cfg!(windows) { "code.cmd" } else { "code" }.into();
         let vsdbgsh_path = config_dir.join(VSDBGSH_FILE_NAME);
         let args = AshArgs::parse();
+        let start_value = args.host.clone().unwrap_or_default();
         if args.check_update {
             check_ash_update()?;
             std::process::exit(0)
@@ -71,6 +73,16 @@ impl Options {
         if !vsdbgsh_path.exists() {
             std::fs::write(&vsdbgsh_path, VSDBGSH)?;
         }
-        Ok(Self { user_dirs, home_dir, config_dir, config_path, history_path, code_cmd, vsdbgsh_path, args })
+        Ok(Self {
+            user_dirs,
+            home_dir,
+            config_dir,
+            config_path,
+            history_path,
+            code_cmd,
+            vsdbgsh_path,
+            args,
+            start_value,
+        })
     }
 }

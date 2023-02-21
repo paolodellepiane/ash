@@ -8,6 +8,11 @@ use fuzzy_matcher::FuzzyMatcher;
 use itertools::Itertools;
 use std::process::exit;
 
+pub fn select_str(message: &str, options: &Vec<String>, start_value: &str) -> Result<String> {
+    let res = select(message, options, start_value)?;
+    Ok(options[res].clone())
+}
+
 pub fn select(message: &str, options: &Vec<String>, start_value: &str) -> Result<usize> {
     let matcher = SkimMatcherV2::default().ignore_case();
     if options.is_empty() {

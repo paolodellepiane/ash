@@ -1,0 +1,236 @@
+[
+  {
+    "kind": "node",
+    "version": "v2",
+    "metadata": {
+      "name": "614759bd-3498-47ce-a4d5-7b44470a9114",
+      "labels": {
+        "aws/Name": "Kong v280 Test - Manager",
+        "aws/stack": "",
+        "cluster": "aws",
+        "env": "test",
+        "teleport.internal/resource-id": "bd140573-a3e0-4acd-951a-b8b806995c99"
+      },
+      "expires": "2023-02-21T16:25:40.749064167Z",
+      "id": 1676996140749261511
+    },
+    "spec": {
+      "addr": "",
+      "hostname": "ip-172-31-13-92",
+      "cmd_labels": {
+        "hostname": {
+  "period": "1h0m0s",
+  "command": [
+    "hostname"
+  ],
+  "result": "ip-172-31-13-92"
+},
+        "os": {
+  "period": "1h0m0s",
+  "command": [
+    "lsb_release",
+    "-d",
+    "-s"
+  ],
+  "result": "Ubuntu 20.04.5 LTS"
+},
+        "teleport": {
+  "period": "1m0s",
+  "command": [
+    "sh",
+    "-c",
+    "teleport version|sed -nr \"s/.*(v[0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p\""
+  ],
+  "result": "v12.0.2"
+}
+      },
+      "rotation": {
+        "current_id": "",
+        "started": "0001-01-01T00:00:00Z",
+        "last_rotated": "0001-01-01T00:00:00Z",
+        "schedule": {
+          "update_clients": "0001-01-01T00:00:00Z",
+          "update_servers": "0001-01-01T00:00:00Z",
+          "standby": "0001-01-01T00:00:00Z"
+        }
+      },
+      "use_tunnel": true,
+      "version": "12.0.2"
+    }
+  },
+  {
+    "kind": "node",
+    "version": "v2",
+    "metadata": {
+      "name": "ec7960f0-f98e-4750-8905-5c0d3ebacb5b",
+      "labels": {
+        "aws/Name": "GithubActionsRunner",
+        "cluster": "aws",
+        "env": "lab",
+        "teleport.internal/resource-id": "e6e60126-b422-4ba9-9b6d-99ee198bae95"
+      },
+      "expires": "2023-02-21T16:25:38.070546016Z",
+      "id": 1676996138070788671
+    },
+    "spec": {
+      "addr": "",
+      "hostname": "ip-172-31-19-54",
+      "cmd_labels": {
+        "hostname": {
+  "period": "1h0m0s",
+  "command": [
+    "hostname"
+  ],
+  "result": "ip-172-31-19-54"
+},
+        "os": {
+  "period": "1h0m0s",
+  "command": [
+    "lsb_release",
+    "-d",
+    "-s"
+  ],
+  "result": "Ubuntu 22.04 LTS"
+},
+        "teleport": {
+  "period": "1m0s",
+  "command": [
+    "sh",
+    "-c",
+    "teleport version|sed -nr \"s/.*(v[0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p\""
+  ],
+  "result": "v12.0.2"
+}
+      },
+      "rotation": {
+        "current_id": "",
+        "started": "0001-01-01T00:00:00Z",
+        "last_rotated": "0001-01-01T00:00:00Z",
+        "schedule": {
+          "update_clients": "0001-01-01T00:00:00Z",
+          "update_servers": "0001-01-01T00:00:00Z",
+          "standby": "0001-01-01T00:00:00Z"
+        }
+      },
+      "use_tunnel": true,
+      "version": "12.0.2"
+    }
+  },
+  {
+    "kind": "node",
+    "version": "v2",
+    "metadata": {
+      "name": "ca5ff2d4-d86d-4235-9422-6e0282d0dab7",
+      "labels": {
+        "aws/InstanceName": "develop",
+        "aws/Name": "develop-15 lnx",
+        "aws/Snapshot": "14",
+        "aws/Stack": "Application",
+        "aws/stack": "test",
+        "cluster": "aws",
+        "env": "test",
+        "teleport.internal/resource-id": "0572efbc-04ce-4de9-92cf-bec952d46d55"
+      },
+      "expires": "2023-02-21T16:25:26.352286451Z",
+      "id": 1676996126352548547
+    },
+    "spec": {
+      "addr": "",
+      "hostname": "ip-172-31-5-229",
+      "cmd_labels": {
+        "hostname": {
+  "period": "1h0m0s",
+  "command": [
+    "hostname"
+  ],
+  "result": "ip-172-31-5-229"
+},
+        "os": {
+  "period": "1h0m0s",
+  "command": [
+    "lsb_release",
+    "-ds"
+  ],
+  "result": "Ubuntu 20.04.5 LTS"
+},
+        "teleport": {
+  "period": "1m0s",
+  "command": [
+    "sh",
+    "-c",
+    "teleport version|sed -nr \"s/.*(v[0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p\""
+  ],
+  "result": "v12.0.2"
+}
+      },
+      "rotation": {
+        "current_id": "",
+        "started": "0001-01-01T00:00:00Z",
+        "last_rotated": "0001-01-01T00:00:00Z",
+        "schedule": {
+          "update_clients": "0001-01-01T00:00:00Z",
+          "update_servers": "0001-01-01T00:00:00Z",
+          "standby": "0001-01-01T00:00:00Z"
+        }
+      },
+      "use_tunnel": true,
+      "version": "12.0.2"
+    }
+  },
+  {
+    "kind": "node",
+    "version": "v2",
+    "metadata": {
+      "name": "1f99b95a-09f7-4b77-a85d-1e2b83850632",
+      "labels": {
+        "aws/Name": "teleport-proxy",
+        "cluster": "aws"
+      },
+      "expires": "2023-02-21T16:25:21.124937701Z",
+      "id": 1676996121125026143
+    },
+    "spec": {
+      "addr": "172.31.36.57:3022",
+      "public_addr": "teleport.mago.cloud:443",
+      "hostname": "teleport-proxy",
+      "cmd_labels": {
+        "hostname": {
+  "period": "1h0m0s",
+  "command": [
+    "hostname"
+  ],
+  "result": "ip-172-31-36-57"
+},
+        "os": {
+  "period": "1h0m0s",
+  "command": [
+    "lsb_release",
+    "-d",
+    "-s"
+  ],
+  "result": "Ubuntu 22.04.1 LTS"
+},
+        "teleport": {
+  "period": "1m0s",
+  "command": [
+    "sh",
+    "-c",
+    "teleport version|sed -nr \"s/.*(v[0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/p\""
+  ],
+  "result": "v12.0.2"
+}
+      },
+      "rotation": {
+        "current_id": "",
+        "started": "0001-01-01T00:00:00Z",
+        "last_rotated": "0001-01-01T00:00:00Z",
+        "schedule": {
+          "update_clients": "0001-01-01T00:00:00Z",
+          "update_servers": "0001-01-01T00:00:00Z",
+          "standby": "0001-01-01T00:00:00Z"
+        }
+      },
+      "version": "12.0.2"
+    }
+  }
+]

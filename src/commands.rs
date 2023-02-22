@@ -15,13 +15,11 @@ use clap::Subcommand;
 use itertools::Itertools;
 use std::fs::DirEntry;
 use std::io::BufRead;
-use std::io::BufReader;
 use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
 use std::process::ExitStatus;
-use std::process::Stdio;
 
 #[derive(Args, Clone, Copy)]
 pub struct TunnelArgs {
@@ -42,6 +40,7 @@ pub struct ScpArgs {
 }
 
 fn get_hosts() -> Result<Vec<Host>> {
+    // let hosts = Command::new("tsh").args(COMMON_TSH_ARGS).args(["ls", "-f", "json"]).output()?.stdout;
     let hosts = Command::new("tsh").args(COMMON_TSH_ARGS).args(["ls", "-f", "json"]).output()?.stdout;
     let hosts: Hosts = serde_json::from_slice(&hosts)?;
     Ok(hosts)
@@ -207,7 +206,7 @@ pub fn exec(s: &Settings, command: &str) -> Result<()> {
 pub fn code(s: &Settings) -> Result<()> {
     let name = &select_host(&s.history_path, &s.start_value)?.ssh_name();
     p!("Connect vscode to remote host {name}...");
-    Command::new(&s.code_cmd).args(["--folder-uri", &f!("vscode-remote://ssh-remote+{name}/")]).status()?;
+    Command::new(&s.code_cmd).args(["--folder-uri", &f!("vscode-remote://ssh-remote+ubuntu@{name}/")]).status()?;
     Ok(())
 }
 
@@ -227,10 +226,27 @@ pub fn code(s: &Settings) -> Result<()> {
 pub fn append_tsh_to_ssh_config() -> Result<()> {
     let ssh_config =
         directories::UserDirs::new().context("can't retrieve home directory")?.home_dir().join(".ssh").join("config");
-    std::fs::copy(&ssh_config, f!("{}.tsh.bak", ssh_config.display()))?;
+    let mut bak = ssh_config.clone();
+    bak.set_extension("tsh.bak");
+    if bak.exists() {
+        bail!("Tsh config already appended. Please delete {bak:?} to append again.");
+    }
+    std::fs::copy(&ssh_config, &bak)?;
     let config = Command::new("tsh").args(COMMON_TSH_ARGS).args(["config"]).output()?.stdout;
+    let config = config
+        .lines()
+        .filter_map(Result::ok)
+        .enumerate()
+        .fold(Vec::new(), |mut acc, (i, x)| {
+            if i == 4 {
+                acc.push("    User ubuntu".to_string())
+            }
+            acc.push(x);
+            acc
+        })
+        .join("\n");
     let mut f = std::fs::OpenOptions::new().write(true).append(true).open(&ssh_config)?;
-    f.write_all(&config)?;
+    write!(f, "{}", config)?;
     Ok(())
 }
 
@@ -273,10 +289,12 @@ fn browse_local(s: &Settings) -> Result<String> {
 fn browse_remote(host: &Host) -> Result<String> {
     let host_name = f!("{}.aws", &host.name());
     let mut ssh = Ssh::new(&host_name)?;
-    // ssh.write("pwd")?;
-    let mut base_dir = "/".to_string();
+    ssh.write("pwd")?;
+    let mut base_dir = ssh.read()?;
+    let mut base_dir = ssh.read()?;
+    let mut base_dir = ssh.read()?;
     loop {
-        ssh.write(&f!("ls --group-directories-first -pa1 '{base_dir}'\n"))?;
+        ssh.write(&f!("ls --group-directories-first -pa1 '/'\n"))?;
         let out = ssh.read()?;
         let entries = parse_ls_output(&out, &"/")?;
         let options = entries.iter().map(|x| x.file_name.clone()).filter(|x| x != "./").collect_vec();
@@ -399,22 +417,22 @@ pub fn read_dir(path: impl AsRef<Path>) -> Result<Vec<Entry>> {
 //     Ok(containers[idx][0].to_string())
 // }
 
-fn ssh_execute_output(host_name: &str, cmd: &str) -> Result<String> {
-    let out = Command::new("tsh").args(COMMON_TSH_ARGS).args([host_name, cmd]).output()?;
-    if !out.status.success() {
-        bail!("{}", String::from_utf8_lossy(&out.stderr));
-    }
-    Ok(String::from_utf8_lossy(&out.stdout).into_owned())
-}
+// fn ssh_execute_output(host_name: &str, cmd: &str) -> Result<String> {
+//     let out = Command::new("tsh").args(COMMON_TSH_ARGS).args([host_name, cmd]).output()?;
+//     if !out.status.success() {
+//         bail!("{}", String::from_utf8_lossy(&out.stderr));
+//     }
+//     Ok(String::from_utf8_lossy(&out.stdout).into_owned())
+// }
 
-fn ssh_execute_redirect(host_name: &str, cmd: &str) -> Result<String> {
-    let mut output = Command::new("tsh").args(COMMON_TSH_ARGS).args([host_name, cmd]).stdout(Stdio::piped()).spawn()?;
-    if let Some(stdout) = output.stdout.take() {
-        let out = BufReader::new(stdout).lines().filter_map(|l| l.ok()).inspect(|l| p!("{l}")).collect_vec();
-        return Ok(out.join("\n"));
-    }
-    Ok(String::from(""))
-}
+// fn ssh_execute_redirect(host_name: &str, cmd: &str) -> Result<String> {
+//     let mut output = Command::new("tsh").args(COMMON_TSH_ARGS).args([host_name, cmd]).stdout(Stdio::piped()).spawn()?;
+//     if let Some(stdout) = output.stdout.take() {
+//         let out = BufReader::new(stdout).lines().filter_map(|l| l.ok()).inspect(|l| p!("{l}")).collect_vec();
+//         return Ok(out.join("\n"));
+//     }
+//     Ok(String::from(""))
+// }
 
 fn scp_execute(from: &str, to: &str) -> std::io::Result<ExitStatus> {
     Command::new("tsh").args(COMMON_TSH_ARGS).args(["scp", from, to]).status()

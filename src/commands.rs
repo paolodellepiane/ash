@@ -233,20 +233,8 @@ pub fn append_tsh_to_ssh_config() -> Result<()> {
     }
     std::fs::copy(&ssh_config, &bak)?;
     let config = Command::new("tsh").args(COMMON_TSH_ARGS).args(["config"]).output()?.stdout;
-    let config = config
-        .lines()
-        .filter_map(Result::ok)
-        .enumerate()
-        .fold(Vec::new(), |mut acc, (i, x)| {
-            if i == 4 {
-                acc.push("    User ubuntu".to_string())
-            }
-            acc.push(x);
-            acc
-        })
-        .join("\n");
     let mut f = std::fs::OpenOptions::new().write(true).append(true).open(&ssh_config)?;
-    write!(f, "{}", config)?;
+    f.write_all(&config)?;
     Ok(())
 }
 

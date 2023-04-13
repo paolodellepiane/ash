@@ -20,8 +20,7 @@
                 }
             },
             "args": [
-                "release13win",
-                "container",
+                "dev",
                 "get"
             ],
             "cwd": "${workspaceFolder}"

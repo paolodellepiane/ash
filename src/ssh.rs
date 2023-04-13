@@ -13,22 +13,12 @@ pub struct Ssh {
 impl Ssh {
     pub fn new(host_name: &str) -> Result<Self> {
         let mut child =
-            Command::new("ssh").args(["-T", host_name]).stdin(Stdio::piped()).stdout(Stdio::piped()).spawn()?;
+            Command::new("ssh").args(["-T", host_name, "sh"]).stdin(Stdio::piped()).stdout(Stdio::piped()).spawn()?;
         let stdin = child.stdin.take().ok_or_else(|| eyre!("can't take stdin"))?;
         let stdout = child.stdout.take().ok_or_else(|| eyre!("can't take stdout"))?;
-        let mut stdout = BufReader::new(stdout);
-        let mut buf = [0; 4096];
-        _ = stdout.read(&mut buf)?;
+        let stdout = BufReader::new(stdout);
         Ok(Self { stdin, stdout, prefix: Default::default() })
     }
-
-    // pub fn with_prefix(&mut self, prefix: &str) {
-    //     self.prefix = format!("{prefix} ");
-    // }
-
-    // pub fn prefix(&self) -> String {
-    //     self.prefix.clone()
-    // }
 
     pub fn write(&mut self, cmd: &str) -> Result<()> {
         let prefix = &self.prefix;

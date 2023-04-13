@@ -243,6 +243,7 @@ pub fn append_tsh_to_ssh_config() -> Result<()> {
 pub fn get_file(s: &Settings) -> Result<()> {
     let host = select_host(&s.history_path, &s.cache_path, &s.start_value)?;
     let path = browse_remote(&host)?;
+    dbg!(&path);
     scp_execute(&path, ".")?;
     Ok(())
 }
@@ -277,16 +278,14 @@ fn browse_local(s: &Settings) -> Result<String> {
 }
 
 fn browse_remote(host: &Host) -> Result<String> {
-    let host_name = f!("{}.aws", &host.name());
+    let host_name = f!("ubuntu@{}.aws", &host.name());
     let mut ssh = Ssh::new(&host_name)?;
     ssh.write("pwd")?;
-    let _ = ssh.read()?;
-    let _ = ssh.read()?;
     let mut base_dir = ssh.read()?;
     loop {
-        ssh.write(&f!("ls --group-directories-first -pa1 '/'\n"))?;
+        ssh.write(&f!("ls --group-directories-first -pa1 {base_dir}"))?;
         let out = ssh.read()?;
-        let entries = parse_ls_output(&out, &"/")?;
+        let entries = parse_ls_output(&out, &base_dir)?;
         let options = entries.iter().map(|x| x.file_name.clone()).filter(|x| x != "./").collect_vec();
         let file = select::select_str("", &options, "")?;
         let entry = entries.iter().find(|x| x.file_name == file).unwrap().clone();
@@ -425,7 +424,7 @@ pub fn read_dir(path: impl AsRef<Path>) -> Result<Vec<Entry>> {
 // }
 
 fn scp_execute(from: &str, to: &str) -> std::io::Result<ExitStatus> {
-    Command::new("tsh").args(COMMON_TSH_ARGS).args(["scp", from, to]).status()
+    Command::new("scp").args(["-T"]).args([from, to]).status()
 }
 
 #[derive(Debug, Clone)]

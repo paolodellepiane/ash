@@ -1,0 +1,1 @@
+cargo build --release && sudo cp .\target\release\tt.exe $env:windir

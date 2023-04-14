@@ -13,7 +13,6 @@ use clap::command;
 use clap::Args;
 use clap::Subcommand;
 use itertools::Itertools;
-use std::fmt::write;
 use std::fs::read;
 use std::fs::read_to_string;
 use std::fs::DirEntry;
@@ -209,6 +208,7 @@ pub fn exec(s: &Settings, command: &str) -> Result<()> {
 }
 
 pub fn code(s: &Settings) -> Result<()> {
+    append_tsh_to_ssh_config()?;
     let name = &select_host(&s.history_path, &s.cache_path, &s.start_value)?.ssh_name();
     Command::new(&s.code_cmd).args(["--folder-uri", &f!("vscode-remote://ssh-remote+ubuntu@{name}/")]).status()?;
     Ok(())
@@ -231,7 +231,6 @@ pub fn append_tsh_to_ssh_config() -> Result<()> {
     let ssh_config =
         directories::UserDirs::new().context("can't retrieve home directory")?.home_dir().join(".ssh").join("config");
     if read_to_string(&ssh_config)?.contains("# Begin generated Teleport configuration") {
-        p!("Teleport ssh configuration already added.");
         return Ok(());
     }
     let config = Command::new("tsh").args(COMMON_TSH_ARGS).args(["config"]).output()?.stdout;
@@ -241,14 +240,15 @@ pub fn append_tsh_to_ssh_config() -> Result<()> {
 }
 
 pub fn get_file(s: &Settings) -> Result<()> {
+    append_tsh_to_ssh_config()?;
     let host = select_host(&s.history_path, &s.cache_path, &s.start_value)?;
     let path = browse_remote(&host)?;
-    dbg!(&path);
     scp_execute(&path, ".")?;
     Ok(())
 }
 
 pub fn put_file(s: &Settings) -> Result<()> {
+    append_tsh_to_ssh_config()?;
     let path = browse_local(s)?;
     let host = select_host(&s.history_path, &s.cache_path, &s.start_value)?;
     let name = host.name();

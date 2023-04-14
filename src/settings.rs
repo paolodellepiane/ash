@@ -1,19 +1,21 @@
 use crate::{commands::Commands, prelude::*};
 use clap::Parser;
 use clap_complete::Shell;
+use const_format::concatcp;
 use directories::UserDirs;
 use std::path::PathBuf;
 
-pub const CONFIG_FILE_NAME: &str = "tash.config.json";
+const NAME: &str = env!("CARGO_PKG_NAME");
+pub const CONFIG_FILE_NAME: &str = concatcp!(NAME, ".config.json");
 pub const COMMON_TSH_ARGS: &[&str] = &["--proxy", "gate.mago.cloud", "--auth", "github"];
 pub const VSDBGSH: &str = include_str!("../res/vsdbg.sh");
 pub const VSDBGSH_FILE_NAME: &str = "vsdbg.sh";
 
-fn check_ash_update() -> Result<()> {
+fn check_update() -> Result<()> {
     if !cfg!(windows) {
         bail!("not implemented on this platform");
     }
-    std::process::Command::new("scoop.cmd").args(["update", "-k", "ash"]).spawn()?;
+    std::process::Command::new("scoop.cmd").args(["update", "-k", NAME]).spawn()?;
     Ok(())
 }
 
@@ -56,7 +58,7 @@ impl Settings {
     pub fn new() -> Result<Self> {
         let user_dirs = UserDirs::new().expect("can't get user dirs");
         let home_dir = user_dirs.home_dir().to_owned();
-        let config_dir = user_dirs.home_dir().join(".config").join("tash");
+        let config_dir = user_dirs.home_dir().join(".config").join(NAME);
         let config_path = config_dir.join(CONFIG_FILE_NAME);
         let history_path = config_dir.join("history");
         let cache_path = config_dir.join("cache");
@@ -65,7 +67,7 @@ impl Settings {
         let args = AshArgs::parse();
         let start_value = args.host.clone().unwrap_or_default();
         if args.check_update {
-            check_ash_update()?;
+            check_update()?;
             std::process::exit(0)
         }
         if args.reset {
